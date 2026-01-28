@@ -16,7 +16,14 @@ status:
   @echo "Raw:"
   @ls -la data/raw 2>/dev/null || true
 
-extract:
+init:
+  @echo "Creating data directories..."
+  @mkdir -p data/raw
+  @mkdir -p data/rdf
+  @mkdir -p data/oxigraph/store
+  @echo "Directories created."
+
+extract: init
   {{PY}} scripts/extract_last_7_days.py
   test -s data/raw/messages_last_7_days.jsonl
   head -n 1 data/raw/messages_last_7_days.jsonl | {{PY}} -c "import sys,json; json.loads(sys.stdin.read()); print('raw ok')"
@@ -57,3 +64,10 @@ run-all:
   just dump-rdf
   just load-oxigraph
   @echo "OK: pipeline complete. Run 'just serve' in another terminal, then 'just query-http'."
+
+clean:
+  @echo "Removing generated data files..."
+  @rm -rf data/raw/*.jsonl data/raw/*.json
+  @rm -rf data/rdf/*.ttl
+  @rm -rf data/oxigraph/store/*
+  @echo "Clean complete. Directories preserved."

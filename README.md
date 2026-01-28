@@ -118,6 +118,16 @@ Key relationships:
 
 ## Usage
 
+### Initialize Data Directories
+
+If this is a fresh clone, initialize the required data directories:
+
+```bash
+just init
+```
+
+This creates `data/raw/`, `data/rdf/`, and `data/oxigraph/store/` directories if they don't exist. The pipeline stages will automatically run `init` as needed, but you can run it manually if desired.
+
 ### Quick Start - Full Pipeline
 
 Run the complete ETL pipeline:
@@ -181,6 +191,20 @@ View the current state of data directories:
 just status
 ```
 
+### Clean Generated Data
+
+Remove all generated data files while preserving directory structure:
+```bash
+just clean
+```
+
+This deletes:
+- `data/raw/*.jsonl` and `data/raw/*.json`
+- `data/rdf/*.ttl`
+- `data/oxigraph/store/*`
+
+The directories themselves are preserved (with `.gitkeep` files for git).
+
 ## Project Structure
 
 ```
@@ -199,8 +223,12 @@ knowledge-graph-builder/
 │   └── load_into_oxigraph.py   # Stage 5: Graph database loading
 ├── data/
 │   ├── raw/                    # Intermediate JSON/JSONL files
+│   │   └── .gitkeep           # Preserves directory in git
 │   ├── rdf/                    # RDF Turtle files
+│   │   └── .gitkeep           # Preserves directory in git
 │   └── oxigraph/               # Oxigraph database files
+│       └── store/
+│           └── .gitkeep       # Preserves directory in git
 ├── justfile                    # Task automation recipes
 ├── pyproject.toml              # Python dependencies (uv)
 ├── .env                        # Environment variables (create this)
