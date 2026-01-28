@@ -1,0 +1,127 @@
+id: https://example.org/knowledge-graph-builder/sioc-min
+name: sioc_min
+description: Minimal SIOC-aligned schema for Telegram-derived social data
+
+prefixes:
+  sioc: http://rdfs.org/sioc/ns#
+  dcterms: http://purl.org/dc/terms/
+  schema: http://schema.org/
+  tg: https://example.org/telegram/
+  linkml: https://w3id.org/linkml/
+
+default_prefix: tg
+default_range: string
+
+imports:
+  - linkml:types
+
+classes:
+  GraphDocument:
+    tree_root: true
+    slots:
+      - id
+      - community
+      - users
+      - links
+      - posts
+
+  Community:
+    class_uri: sioc:Community
+    slots:
+      - id
+
+  UserAccount:
+    class_uri: sioc:UserAccount
+    slots:
+      - id
+
+  Link:
+    class_uri: schema:URL
+    slots:
+      - id
+
+  Post:
+    class_uri: sioc:Post
+    slots:
+      - id
+      - content
+      - created
+      - has_creator
+      - has_container
+      - reply_to
+      - links_to
+      - forwards
+      - pinned
+      - topics
+      - mentions
+      - entity_links
+
+slots:
+  id:
+    identifier: true
+    slot_uri: dcterms:identifier
+
+  content:
+    slot_uri: sioc:content
+
+  created:
+    range: datetime
+    slot_uri: dcterms:created
+
+  has_creator:
+    range: UserAccount
+    slot_uri: sioc:has_creator
+
+  has_container:
+    range: Community
+    slot_uri: sioc:has_container
+
+  reply_to:
+    range: Post
+    slot_uri: sioc:reply_of
+
+  links_to:
+    multivalued: true
+    range: Link
+    slot_uri: sioc:links_to
+
+  community:
+    range: Community
+
+  users:
+    range: UserAccount
+    multivalued: true
+    inlined: true
+
+  links:
+    range: Link
+    multivalued: true
+    inlined: true
+
+  posts:
+    range: Post
+    multivalued: true
+    inlined: true
+
+  forwards:
+    range: integer
+    slot_uri: tg:forwards
+
+  pinned:
+    range: boolean
+    slot_uri: tg:pinned
+
+  topics:
+    multivalued: true
+    range: string
+    slot_uri: sioc:topic
+
+  mentions:
+    multivalued: true
+    range: string
+    slot_uri: tg:mentions
+
+  entity_links:
+    multivalued: true
+    range: Link
+    slot_uri: sioc:links_to
