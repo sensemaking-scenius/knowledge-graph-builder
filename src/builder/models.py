@@ -1,5 +1,5 @@
-# Auto generated from sioc_min.yaml by pythongen.py version: 0.0.1
-# Generation date: 2026-01-27T17:26:06
+# Auto generated from sioc.yaml by pythongen.py version: 0.0.1
+# Generation date: 2026-03-11T10:10:31
 # Schema: sioc_min
 #
 # id: https://example.org/knowledge-graph-builder/sioc-min

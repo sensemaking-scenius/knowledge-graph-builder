@@ -42,7 +42,7 @@ query:
     --data 'SELECT (COUNT(*) AS ?count) WHERE { ?s ?p ?o }'
 
 gen-model:
-  uv run gen-python schemas/sioc.yaml > src/builder/models.py
+  {{PY}} -m linkml.generators.pythongen schemas/sioc.yaml > src/builder/models.py
 
 validate:
   uv run linkml validate schemas/sioc.yaml
