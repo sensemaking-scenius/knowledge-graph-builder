@@ -1,5 +1,7 @@
+"""Serialize stage: LinkML graph JSON → RDF/Turtle."""
+
 import json
-import os
+
 from collections.abc import Mapping
 from typing import Any, cast
 
@@ -7,14 +9,12 @@ from linkml_runtime.dumpers import rdflib_dumper
 from linkml_runtime.loaders import json_loader
 from linkml_runtime.utils.schemaview import SchemaView
 
-from builder.sioc_model import GraphDocument
-
-INP = "data/raw/linkml_graph.json"
-SCHEMA = "schemas/sioc_min.yaml"
-OUT = "data/rdf/sioc_graph.ttl"
+from builder.config import GRAPH_FILE, SCHEMA_FILE, TURTLE_FILE
+from builder.models import GraphDocument
 
 
 def ensure_str_keys(x: Any) -> Any:
+    """Recursively convert all dict keys to strings."""
     if isinstance(x, Mapping):
         return {str(k): ensure_str_keys(v) for k, v in x.items()}
     if isinstance(x, list):
@@ -23,6 +23,7 @@ def ensure_str_keys(x: Any) -> Any:
 
 
 def unwrap_id_value(v: Any) -> Any:
+    """Unwrap nested {"id": ...} wrappers to plain string IDs."""
     if isinstance(v, str):
         return v
     if isinstance(v, Mapping) and "id" in v and len(v) == 1:
@@ -35,6 +36,7 @@ def unwrap_id_value(v: Any) -> Any:
 
 
 def deep_clean_ids(x: Any) -> Any:
+    """Fix ID structure throughout a JSON tree for LinkML loader compatibility."""
     if isinstance(x, Mapping):
         out = {}
         for k, v in x.items():
@@ -50,26 +52,24 @@ def deep_clean_ids(x: Any) -> Any:
 
 
 def main() -> None:
-    raw = json.load(open(INP, "r", encoding="utf-8"))
+    raw = json.load(open(GRAPH_FILE, "r", encoding="utf-8"))
     raw = ensure_str_keys(raw)
     raw = deep_clean_ids(raw)
 
-    tmp = "data/raw/linkml_graph.normalized.json"
-    os.makedirs("data/raw", exist_ok=True)
-    with open(tmp, "w", encoding="utf-8") as f:
+    # Write normalized JSON to a temp file for the LinkML loader
+    normalized = GRAPH_FILE.parent / "linkml_graph.normalized.json"
+    with open(normalized, "w", encoding="utf-8") as f:
         json.dump(raw, f, ensure_ascii=False)
 
-    sv = SchemaView(SCHEMA)
-
-    doc = cast(GraphDocument, json_loader.load(tmp, target_class=GraphDocument))
-
+    sv = SchemaView(str(SCHEMA_FILE))
+    doc = cast(GraphDocument, json_loader.load(str(normalized), target_class=GraphDocument))
     ttl = rdflib_dumper.dumps(doc, schemaview=sv)
 
-    os.makedirs("data/rdf", exist_ok=True)
-    with open(OUT, "w", encoding="utf-8") as f:
+    TURTLE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(TURTLE_FILE, "w", encoding="utf-8") as f:
         f.write(ttl)
 
-    print(f"Wrote RDF to {OUT}")
+    print(f"Wrote RDF to {TURTLE_FILE}")
 
 
 if __name__ == "__main__":

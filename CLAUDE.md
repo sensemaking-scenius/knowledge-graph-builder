@@ -11,26 +11,28 @@ Telegram Community Knowledge Graph Builder — a Python ETL pipeline that extrac
 All commands use `just` (task runner) and `uv` (Python package manager).
 
 ```bash
-# Full pipeline (canonicalize → transform → dump-rdf → load-oxigraph)
+# Full pipeline (extract → transform → serialize → load)
 just run-all
 
-# Individual pipeline stages (each depends on prior stages)
-just extract          # Telegram API → data/raw/messages_last_7_days.jsonl
-just canonicalize     # Normalize → data/raw/canonical_last_7_days.jsonl
-just transform        # LinkML objects → data/raw/linkml_graph.json
-just dump-rdf         # RDF/Turtle → data/rdf/sioc_graph.ttl
-just load-oxigraph    # Ingest into Oxigraph store
+# Build only (transform → serialize → load, skips extraction)
+just build
 
-# Run a single script directly
-uv run python scripts/<script_name>.py
+# Individual pipeline stages
+just extract          # Telegram API → data/raw/messages.jsonl
+just transform        # Raw JSON → data/graph/linkml_graph.json
+just serialize        # LinkML JSON → data/rdf/sioc_graph.ttl
+just load             # Turtle → data/store/ (Oxigraph)
 
 # Serve Oxigraph for SPARQL queries
 just serve            # localhost:7878
-just query-http       # Test SPARQL count query against running server
-just query-python     # Query via pyoxigraph Python API
+just query            # Test SPARQL count query against running server
+
+# Schema tooling
+just gen-model        # Regenerate models.py from schema
+just validate         # Validate LinkML schema
 
 # Type checking
-uv run pyright
+just typecheck
 
 # Clean generated data (preserves directory structure)
 just clean
@@ -38,20 +40,27 @@ just clean
 
 ## Architecture
 
-### 5-Stage Pipeline
+### 4-Stage Pipeline
 
 ```
-Telegram API → Extract → Canonicalize → Transform → Dump RDF → Load Oxigraph
-                 ↓            ↓             ↓            ↓           ↓
-              .jsonl       .jsonl      linkml_graph   .ttl      oxigraph/store
-             (raw msgs)  (normalized)    .json      (Turtle)    (triplestore)
+Telegram API → Extract → Transform → Serialize → Load
+                 ↓            ↓            ↓          ↓
+              data/raw/    data/graph/   data/rdf/  data/store/
+              (messages)   (LinkML JSON)  (Turtle)   (Oxigraph)
 ```
 
-Each stage is a standalone script in `scripts/` that reads from the previous stage's output in `data/`.
+Each stage is a module in `src/builder/`, invoked via `uv run python -m builder.<stage>`.
+
+| Stage | Module | Input | Output |
+|-------|--------|-------|--------|
+| **Extract** | `builder.extract` | Telegram API | `messages.jsonl` |
+| **Transform** | `builder.transform` | Raw JSON files | `linkml_graph.json` |
+| **Serialize** | `builder.serialize` | LinkML JSON + schema | `sioc_graph.ttl` |
+| **Load** | `builder.load` | Turtle file | Oxigraph store |
 
 ### Schema-Driven Data Model
 
-The schema lives in `schemas/sioc_min.yaml` (LinkML format, SIOC ontology-aligned). It defines five classes:
+The schema lives in `schemas/sioc.yaml` (LinkML format, SIOC ontology-aligned). It defines five classes:
 
 - **GraphDocument** — root container (tree_root)
 - **Community** → `sioc:Community` — the Telegram channel/group
@@ -59,7 +68,7 @@ The schema lives in `schemas/sioc_min.yaml` (LinkML format, SIOC ontology-aligne
 - **Post** → `sioc:Post` — individual messages (with replies, topics, mentions, links)
 - **Link** → `schema:URL` — extracted URLs
 
-`src/builder/sioc_model.py` is **auto-generated** from the schema via `linkml gen-python`. Do not edit it directly; modify `schemas/sioc_min.yaml` and regenerate.
+`src/builder/models.py` is **auto-generated** from the schema via `just gen-model`. Do not edit it directly; modify `schemas/sioc.yaml` and regenerate.
 
 ### Key Ontology Prefixes
 
@@ -70,9 +79,17 @@ The schema lives in `schemas/sioc_min.yaml` (LinkML format, SIOC ontology-aligne
 | `schema:` | `http://schema.org/`                |
 | `tg:`    | `https://example.org/telegram/`      |
 
-### Entity Extraction (Canonicalize Stage)
+### Entity Extraction (Transform Stage)
 
-The canonicalize step extracts from raw Telegram messages: hashtags → topics, @mentions, URLs (via regex + Telegram entities), reply relationships, forward counts, and pinned status.
+The `builder.transform.entities` module extracts from raw Telegram messages: hashtags → topics, @mentions, URLs (via regex + Telegram entities), reply relationships, forward counts, and pinned status.
+
+### Key Modules
+
+- **`config.py`** — paths, env vars, URI helpers (single source of truth)
+- **`extract.py`** — Telegram API client
+- **`transform/`** — package with sub-modules for messages, users, channels, entities
+- **`serialize.py`** — LinkML JSON → RDF/Turtle via rdflib
+- **`load.py`** — Turtle → Oxigraph triplestore
 
 ## Configuration
 

@@ -5,11 +5,14 @@ tg.session
 data/raw/*
 !data/raw/.gitkeep
 
+data/graph/*
+!data/graph/.gitkeep
+
 data/rdf/*
 !data/rdf/.gitkeep
 
-data/oxigraph/store/*
-!data/oxigraph/store/.gitkeep
+data/store/*
+!data/store/.gitkeep
 
 # Python
 __pycache__/

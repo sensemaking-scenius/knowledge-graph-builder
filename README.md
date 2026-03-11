@@ -385,3 +385,6 @@ uv run pyright
 - [Oxigraph Documentation](https://github.com/oxigraph/oxigraph)
 - [Telethon Documentation](https://docs.telethon.dev/)
 - [SPARQL 1.1 Query Language](https://www.w3.org/TR/sparql11-query/)
+
+Some questions:
+- Does Telegram actually have thread support?

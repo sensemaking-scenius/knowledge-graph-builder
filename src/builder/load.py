@@ -1,18 +1,18 @@
-from pathlib import Path
+"""Load stage: RDF/Turtle → Oxigraph triplestore."""
+
 from typing import Any, Iterable, cast
 
 from pyoxigraph import RdfFormat, Store
 
-RDF_FILE = "data/rdf/sioc_graph.ttl"
-STORE_DIR = "data/oxigraph/store"
+from builder.config import TURTLE_FILE, STORE_DIR
 
 
 def main() -> None:
-    Path(STORE_DIR).mkdir(parents=True, exist_ok=True)
+    STORE_DIR.mkdir(parents=True, exist_ok=True)
 
-    store = Store(STORE_DIR)
+    store = Store(str(STORE_DIR))
 
-    with open(RDF_FILE, "rb") as f:
+    with open(TURTLE_FILE, "rb") as f:
         store.load(f, format=RdfFormat.TURTLE)
 
     store.flush()
@@ -22,7 +22,6 @@ def main() -> None:
     SELECT (COUNT(*) AS ?count)
     WHERE { ?s ?p ?o . }
     """
-
     result = store.query(q)
     rows = cast(Iterable[Any], result)
 

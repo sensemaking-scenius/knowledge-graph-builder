@@ -7,67 +7,53 @@ default: status
 
 status:
   @echo "Repo: knowledge-graph-builder"
-  @echo "Python:"
   @uv run python -V
   @echo "Store:"
-  @ls -la data/oxigraph/store 2>/dev/null || true
+  @ls -la data/store 2>/dev/null || true
   @echo "RDF:"
   @ls -la data/rdf 2>/dev/null || true
+  @echo "Graph:"
+  @ls -la data/graph 2>/dev/null || true
   @echo "Raw:"
   @ls -la data/raw 2>/dev/null || true
 
-init:
-  @echo "Creating data directories..."
-  @mkdir -p data/raw
-  @mkdir -p data/rdf
-  @mkdir -p data/oxigraph/store
-  @echo "Directories created."
+extract:
+  {{PY}} -m builder.extract
 
-extract: init
-  {{PY}} scripts/extract_last_7_days.py
-  test -s data/raw/messages_last_7_days.jsonl
-  head -n 1 data/raw/messages_last_7_days.jsonl | {{PY}} -c "import sys,json; json.loads(sys.stdin.read()); print('raw ok')"
+transform:
+  {{PY}} -m builder.transform
 
-canonicalize: extract
-  {{PY}} scripts/canonicalize_last_7_days.py
-  test -s data/raw/canonical_last_7_days.jsonl
-  head -n 1 data/raw/canonical_last_7_days.jsonl | {{PY}} -c "import sys,json; d=json.loads(sys.stdin.read()); print('canonical ok', sorted(d.keys()))"
+serialize:
+  {{PY}} -m builder.serialize
 
-transform: canonicalize
-  {{PY}} scripts/transform_to_linkml.py
-  test -s data/raw/linkml_graph.json
-  {{PY}} -c "import json; d=json.load(open('data/raw/linkml_graph.json')); print('linkml ok', 'posts', len(d.get('posts',{})) if isinstance(d.get('posts'),dict) else len(d.get('posts',[])))"
+load:
+  {{PY}} -m builder.load
 
-dump-rdf: transform
-  {{PY}} scripts/dump_rdf.py
-  test -s data/rdf/sioc_graph.ttl
-  grep -q "sioc:Post" data/rdf/sioc_graph.ttl
-  echo "rdf ok"
+build: transform serialize load
 
-load-oxigraph: dump-rdf
-  {{PY}} scripts/load_into_oxigraph.py
-
-query-python:
-  {{PY}} scripts/query_oxigraph.py
+run-all: extract build
 
 serve:
-  oxigraph serve --location data/oxigraph/store --bind localhost:7878
+  oxigraph serve --location data/store --bind localhost:7878
 
-query-http:
+query:
   curl -s -X POST http://localhost:7878/query \
     -H "Content-Type: application/sparql-query" \
-    --data 'SELECT (COUNT(*) AS ?count) WHERE { ?s ?p ?o }' | {{PY}} -c "import sys,json; print(json.load(sys.stdin)['results']['bindings'][0]['count']['value'])"
+    --data 'SELECT (COUNT(*) AS ?count) WHERE { ?s ?p ?o }'
 
-run-all:
-  just canonicalize
-  just transform
-  just dump-rdf
-  just load-oxigraph
-  @echo "OK: pipeline complete. Run 'just serve' in another terminal, then 'just query-http'."
+gen-model:
+  uv run gen-python schemas/sioc.yaml > src/builder/models.py
+
+validate:
+  uv run linkml validate schemas/sioc.yaml
+
+typecheck:
+  uv run pyright
 
 clean:
   @echo "Removing generated data files..."
   @rm -rf data/raw/*.jsonl data/raw/*.json
+  @rm -rf data/graph/*.json
   @rm -rf data/rdf/*.ttl
-  @rm -rf data/oxigraph/store/*
+  @rm -rf data/store/*
   @echo "Clean complete. Directories preserved."

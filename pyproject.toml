@@ -1,7 +1,7 @@
 [project]
 name = "knowledge-graph-builder"
 version = "0.1.0"
-description = "Add your description here"
+description = "ETL pipeline: Telegram → LinkML → RDF/SIOC → Oxigraph"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
