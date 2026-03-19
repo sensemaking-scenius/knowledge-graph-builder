@@ -55,7 +55,7 @@ def extract_from_user_id(obj: dict) -> int | None:
 def extract_reply_to_msg_id(obj: dict) -> int | None:
     """Get the replied-to message ID, if any."""
     r = obj.get("reply_to")
-    if isinstance(r, dict) and "reply_to_msg_id" in r:
+    if isinstance(r, dict) and r.get("reply_to_msg_id") is not None:
         return int(r["reply_to_msg_id"])
     return None
 
@@ -68,7 +68,7 @@ def extract_thread_id(obj: dict) -> int | None:
     top_id = r.get("reply_to_top_id")
     if top_id is not None:
         return int(top_id)
-    if r.get("forum_topic") and "reply_to_msg_id" in r:
+    if r.get("forum_topic") and r.get("reply_to_msg_id") is not None:
         return int(r["reply_to_msg_id"])
     return None
 

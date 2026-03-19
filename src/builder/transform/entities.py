@@ -62,7 +62,7 @@ def extract_hashtags(text: str, entities: list[dict]) -> list[Concept]:
         if not isinstance(off, int) or not isinstance(ln, int) or ln <= 0:
             continue
         snippet = text[off : off + ln]
-        tag = snippet.lstrip("#")
+        tag = snippet.lstrip("#").strip()
         if not tag:
             continue
         uri = concept_uri(tag)
