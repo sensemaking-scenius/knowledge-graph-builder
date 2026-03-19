@@ -401,6 +401,7 @@ dependencies = [
     { name = "linkml-runtime" },
     { name = "pyoxigraph" },
     { name = "python-dotenv" },
+    { name = "pyyaml" },
     { name = "rich" },
     { name = "telethon" },
 ]
@@ -411,6 +412,7 @@ requires-dist = [
     { name = "linkml-runtime", specifier = ">=1.9.5" },
     { name = "pyoxigraph", specifier = ">=0.5.4" },
     { name = "python-dotenv", specifier = ">=1.2.1" },
+    { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "rich", specifier = ">=14.3.1" },
     { name = "telethon", specifier = ">=1.42.0" },
 ]

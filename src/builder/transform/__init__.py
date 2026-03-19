@@ -6,11 +6,14 @@ from collections import OrderedDict
 
 from linkml_runtime.dumpers import json_dumper
 
+import yaml
+
 from builder.config import (
     CHANNEL_FILE,
     FORUMS_FILE,
     GRAPH_FILE,
     MESSAGES_FILE,
+    OVERRIDES_FILE,
     PARTICIPANTS_FILE,
     forum_uri,
     graph_uri,
@@ -98,6 +101,21 @@ def load_forums(channel_id: int) -> tuple[list[Forum], set[int]]:
     return forums, topic_ids
 
 
+def load_user_overrides() -> tuple[dict[int, int], dict[int, dict]]:
+    """Load merge and backfill rules from user_overrides.yaml."""
+    merges: dict[int, int] = {}
+    backfills: dict[int, dict] = {}
+    if not OVERRIDES_FILE.exists():
+        return merges, backfills
+    with open(OVERRIDES_FILE, "r") as f:
+        data = yaml.safe_load(f) or {}
+    for old_id, new_id in (data.get("merge") or {}).items():
+        merges[int(old_id)] = int(new_id)
+    for uid, meta in (data.get("backfill") or {}).items():
+        backfills[int(uid)] = meta
+    return merges, backfills
+
+
 def transform() -> GraphDocument:
     """Read raw messages and build a LinkML GraphDocument."""
     # Registries
@@ -111,6 +129,14 @@ def transform() -> GraphDocument:
     posts: list[Post] = []
     seen_msg_ids: set[int] = set()
     participant_names, participant_metadata = load_participants()
+    merges, backfills = load_user_overrides()
+
+    # Apply backfills to participant data
+    for uid, meta in backfills.items():
+        if "name" in meta and uid not in participant_names:
+            participant_names[uid] = meta["name"]
+        if "username" in meta:
+            participant_metadata.setdefault(uid, {})["username"] = meta["username"]
 
     first_channel_id: int | None = None
 
@@ -147,6 +173,13 @@ def transform() -> GraphDocument:
     with open(MESSAGES_FILE, "r", encoding="utf-8") as f:
         for line in f:
             raw = json.loads(line)
+
+            # Apply user merges (rewrite sender to canonical ID)
+            from_id = raw.get("from_id")
+            if isinstance(from_id, dict) and "user_id" in from_id:
+                old_uid = int(from_id["user_id"])
+                if old_uid in merges:
+                    from_id["user_id"] = merges[old_uid]
 
             msg_id = raw.get("id")
             if msg_id is not None:

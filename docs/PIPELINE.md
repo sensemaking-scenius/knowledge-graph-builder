@@ -43,7 +43,7 @@ Telegram API
 | Command | What it does | Input | Output |
 |---------|-------------|-------|--------|
 | `just extract` | Pulls messages + participants + channel metadata + forum structure from Telegram API | Telegram API | `data/raw/messages.jsonl`, `data/raw/participants.jsonl`, `data/raw/channel.json`, `data/raw/forums.json` |
-| `just transform` | Converts raw JSON into a LinkML graph document with 13 entity types | `data/raw/*.jsonl` + `data/raw/*.json` | `data/graph/linkml_graph.json` |
+| `just transform` | Converts raw JSON into a LinkML graph document with 13 entity types. Applies user overrides (merges + backfills) from `user_overrides.yaml` if present | `data/raw/*.jsonl` + `data/raw/*.json` + `data/raw/user_overrides.yaml` | `data/graph/linkml_graph.json` |
 | `just serialize` | Converts LinkML JSON into RDF/Turtle via rdflib | `data/graph/linkml_graph.json` | `data/rdf/sioc_graph.ttl` |
 | `just load` | POSTs the Turtle file to the Dockerized Oxigraph server | `data/rdf/sioc_graph.ttl` | Oxigraph store (Docker volume) |
 | `just demo` | Runs pre-built SPARQL queries and prints a rich dashboard | `data/rdf/sioc_graph.ttl` | terminal output |
@@ -67,6 +67,29 @@ All extraction uses conservative rate limiting to protect the Telegram account:
 - **`flood_sleep_threshold=300`** — auto-waits through up to 5-minute flood bans instead of crashing
 - **Single client session** — one `TelegramClient` is opened per run and shared across all fetch functions (messages, participants, channel metadata, forums)
 - **Crash resume** — full history extraction checkpoints every 200 messages; if interrupted, the next `just extract-full` resumes from the last checkpoint instead of starting over
+
+## User overrides
+
+The transform stage supports a `data/raw/user_overrides.yaml` file for correcting user identity issues that Telegram's raw data can't resolve (deleted accounts, migrated user IDs, etc.).
+
+Two override types are supported:
+
+- **`merge`** — maps an old user ID to a canonical one. Posts by the old ID get reattributed; the old User/Person entities are never created.
+- **`backfill`** — supplies missing metadata (name, username) for accounts where Telegram has stripped the profile (e.g. deleted accounts).
+
+Example:
+
+```yaml
+merge:
+  1093258138: 7899804523  # old account → current account
+
+backfill:
+  5350906388:
+    name: "Paul Winsor"
+    username: "paulw"
+```
+
+The file is optional — if absent, transform runs without overrides.
 
 ## Shortcut recipes
 
@@ -102,7 +125,8 @@ data/
 │   ├── participants.jsonl    #   User metadata (id, username, first_name)
 │   ├── channel.json          #   Channel/supergroup metadata (title, about)
 │   ├── forums.json           #   Forum topic structure (id, title, closed)
-│   └── extract_state.json    #   Incremental extraction state (newest/oldest msg IDs)
+│   ├── extract_state.json    #   Incremental extraction state (newest/oldest msg IDs)
+│   └── user_overrides.yaml   #   Manual user merges and metadata backfills
 ├── graph/                    # Stage: transform
 │   └── linkml_graph.json     #   LinkML graph document (all 13 entity types)
 ├── rdf/                      # Stage: serialize
