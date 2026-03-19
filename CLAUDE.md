@@ -102,7 +102,7 @@ The `builder.transform.entities` module extracts from raw Telegram messages: has
 ### Key Modules
 
 - **`config.py`** — paths, env vars, URI helpers (single source of truth)
-- **`extract.py`** — Telegram API client
+- **`extract.py`** — Telegram API client (single session, ~20 req/min rate limit, crash-safe checkpointing)
 - **`transform/`** — package with sub-modules for messages, users, channels, entities
 - **`serialize.py`** — LinkML JSON → RDF/Turtle via rdflib
 - **`load.py`** — Turtle → Oxigraph via HTTP POST (requires `just up`)

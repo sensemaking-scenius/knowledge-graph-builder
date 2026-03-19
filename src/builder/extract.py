@@ -55,38 +55,31 @@ def coerce_entity(entity_str: str):
 # Message fetching — date-bounded (default mode)
 # ---------------------------------------------------------------------------
 
-async def fetch(days: int = EXTRACT_DAYS) -> int:
+async def fetch(client: TelegramClient, entity, days: int = EXTRACT_DAYS) -> int:
     """Fetch messages bounded by date. Overwrites messages file.
 
     Returns the number of messages written.
     """
     since = datetime.now(timezone.utc) - timedelta(days=days)
 
-    async with TelegramClient(TG_SESSION, TG_API_ID, TG_API_HASH) as client:
-        client.flood_sleep_threshold = 120
+    count = 0
+    MESSAGES_FILE.parent.mkdir(parents=True, exist_ok=True)
 
-        entity = coerce_entity(TG_ENTITY)
-        entity = await client.get_entity(entity)
+    log.info("Fetching messages from last %d days...", days)
 
-        count = 0
-        MESSAGES_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(MESSAGES_FILE, "w", encoding="utf-8") as f:
+        async for msg in client.iter_messages(entity, limit=None, wait_time=3):
+            if not msg.date:
+                continue
+            if msg.date < since:
+                break
+            f.write(json.dumps(msg.to_dict(), ensure_ascii=False, default=str) + "\n")
+            count += 1
 
-        log.info("Fetching messages from last %d days...", days)
+            if count % 100 == 0:
+                log.info("  %d messages fetched...", count)
 
-        with open(MESSAGES_FILE, "w", encoding="utf-8") as f:
-            async for msg in client.iter_messages(entity, limit=None):
-                if not msg.date:
-                    continue
-                if msg.date < since:
-                    break
-                f.write(json.dumps(msg.to_dict(), ensure_ascii=False, default=str) + "\n")
-                count += 1
-
-                if count % 100 == 0:
-                    log.info("  %d messages fetched...", count)
-                    await asyncio.sleep(0.5)
-
-        log.info("Fetched %d messages total.", count)
+    log.info("Fetched %d messages total.", count)
 
     return count
 
@@ -95,44 +88,61 @@ async def fetch(days: int = EXTRACT_DAYS) -> int:
 # Message fetching — full history (incremental)
 # ---------------------------------------------------------------------------
 
-async def fetch_full() -> int:
+async def fetch_full(client: TelegramClient, entity) -> int:
     """Fetch full message history incrementally.
 
-    First run: fetches everything newest→oldest, appends to messages file.
+    First run: fetches everything newest->oldest, appends to messages file.
     Subsequent runs: fetches only messages newer than the saved newest_msg_id.
-    Saves state every 500 messages for resume on interruption.
+    Saves state every 200 messages for resume on interruption.
+    Resumes from last checkpoint if interrupted mid-extraction.
 
     Returns the number of new messages written.
     """
     state = load_state()
+    channel_id = getattr(entity, "id", None)
 
-    async with TelegramClient(TG_SESSION, TG_API_ID, TG_API_HASH) as client:
-        client.flood_sleep_threshold = 120
-
-        entity = coerce_entity(TG_ENTITY)
-        entity = await client.get_entity(entity)
-        channel_id = getattr(entity, "id", None)
-
-        MESSAGES_FILE.parent.mkdir(parents=True, exist_ok=True)
-
-        if state and state.get("complete") and state.get("channel_id") == channel_id:
-            # Incremental: fetch only new messages since last run
-            return await _fetch_incremental(client, entity, state)
-        else:
-            # First run: fetch entire history
-            return await _fetch_full_history(client, entity, channel_id)
+    if state and state.get("complete") and state.get("channel_id") == channel_id:
+        # Incremental: fetch only new messages since last run
+        return await _fetch_incremental(client, entity, state)
+    elif state and not state.get("complete") and state.get("oldest_msg_id") and state.get("channel_id") == channel_id:
+        # Resume interrupted full extraction
+        return await _fetch_full_history(client, entity, channel_id, resume_state=state)
+    else:
+        # First run: fetch entire history
+        return await _fetch_full_history(client, entity, channel_id)
 
 
-async def _fetch_full_history(client: TelegramClient, entity, channel_id: int | None) -> int:
-    """Fetch entire history from newest to oldest. Overwrites messages file."""
-    count = 0
-    newest_id: int | None = None
-    oldest_id: int | None = None
+async def _fetch_full_history(
+    client: TelegramClient,
+    entity,
+    channel_id: int | None,
+    resume_state: dict | None = None,
+) -> int:
+    """Fetch entire history from newest to oldest.
 
-    log.info("Full history extraction: fetching all messages newest→oldest...")
+    If resume_state is provided, continues from the last checkpoint
+    (appends to existing file instead of overwriting).
+    """
+    if resume_state:
+        count = resume_state.get("total_fetched", 0)
+        newest_id = resume_state.get("newest_msg_id")
+        oldest_id = resume_state.get("oldest_msg_id")
+        offset_id = oldest_id
+        file_mode = "a"
+        log.info(
+            "Resuming full extraction from message ID %d (%d messages already fetched)...",
+            offset_id, count,
+        )
+    else:
+        count = 0
+        newest_id = None
+        oldest_id = None
+        offset_id = 0
+        file_mode = "w"
+        log.info("Full history extraction: fetching all messages newest->oldest...")
 
-    with open(MESSAGES_FILE, "w", encoding="utf-8") as f:
-        async for msg in client.iter_messages(entity, limit=None):
+    with open(MESSAGES_FILE, file_mode, encoding="utf-8") as f:
+        async for msg in client.iter_messages(entity, limit=None, offset_id=offset_id, wait_time=3):
             if not msg.date:
                 continue
             msg_dict = msg.to_dict()
@@ -148,9 +158,9 @@ async def _fetch_full_history(client: TelegramClient, entity, channel_id: int | 
 
             if count % 100 == 0:
                 log.info("  %d messages fetched...", count)
-                await asyncio.sleep(0.5)
 
-            if count % 500 == 0:
+            if count % 200 == 0:
+                f.flush()
                 save_state({
                     "channel_id": channel_id,
                     "newest_msg_id": newest_id,
@@ -168,7 +178,7 @@ async def _fetch_full_history(client: TelegramClient, entity, channel_id: int | 
         "complete": True,
     })
 
-    log.info("Full history complete: %d messages (IDs %s→%s).", count, newest_id, oldest_id)
+    log.info("Full history complete: %d messages (IDs %s->%s).", count, newest_id, oldest_id)
     return count
 
 
@@ -186,7 +196,7 @@ async def _fetch_incremental(client: TelegramClient, entity, state: dict) -> int
     new_newest_id = saved_newest
     count = 0
 
-    async for msg in client.iter_messages(entity, limit=None, min_id=saved_newest):
+    async for msg in client.iter_messages(entity, limit=None, min_id=saved_newest, wait_time=3):
         if not msg.date:
             continue
         msg_dict = msg.to_dict()
@@ -201,13 +211,12 @@ async def _fetch_incremental(client: TelegramClient, entity, state: dict) -> int
 
         if count % 100 == 0:
             log.info("  %d new messages fetched...", count)
-            await asyncio.sleep(0.5)
 
     if not new_messages:
         log.info("No new messages since last run.")
         return 0
 
-    # Prepend new messages to existing file (new messages come first = newest→oldest)
+    # Prepend new messages to existing file (new messages come first = newest->oldest)
     existing_content = b""
     if MESSAGES_FILE.exists():
         existing_content = MESSAGES_FILE.read_bytes()
@@ -233,67 +242,55 @@ async def _fetch_incremental(client: TelegramClient, entity, state: dict) -> int
 # Participants & channel metadata
 # ---------------------------------------------------------------------------
 
-async def fetch_participants() -> int:
+async def fetch_participants(client: TelegramClient, entity) -> int:
     """Fetch participant metadata from the configured Telegram entity."""
-    async with TelegramClient(TG_SESSION, TG_API_ID, TG_API_HASH) as client:
-        client.flood_sleep_threshold = 120
+    PARTICIPANTS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    count = 0
 
-        entity = coerce_entity(TG_ENTITY)
-        entity = await client.get_entity(entity)
+    log.info("Fetching participants...")
 
-        PARTICIPANTS_FILE.parent.mkdir(parents=True, exist_ok=True)
-        count = 0
+    with open(PARTICIPANTS_FILE, "w", encoding="utf-8") as f:
+        async for user in client.iter_participants(entity):
+            record = {
+                "id": user.id,
+                "username": user.username,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "bot": getattr(user, "bot", None),
+                "verified": getattr(user, "verified", None),
+                "premium": getattr(user, "premium", None),
+            }
+            f.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
+            count += 1
 
-        log.info("Fetching participants...")
-
-        with open(PARTICIPANTS_FILE, "w", encoding="utf-8") as f:
-            async for user in client.iter_participants(entity):
-                record = {
-                    "id": user.id,
-                    "username": user.username,
-                    "first_name": user.first_name,
-                    "last_name": user.last_name,
-                    "bot": getattr(user, "bot", None),
-                    "verified": getattr(user, "verified", None),
-                    "premium": getattr(user, "premium", None),
-                }
-                f.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
-                count += 1
-
-        log.info("Fetched %d participants.", count)
+    log.info("Fetched %d participants.", count)
 
     return count
 
 
-async def fetch_channel_metadata() -> None:
+async def fetch_channel_metadata(client: TelegramClient, entity) -> None:
     """Fetch channel/supergroup metadata and write to channel.json."""
     from telethon.tl.functions.channels import GetFullChannelRequest
 
-    async with TelegramClient(TG_SESSION, TG_API_ID, TG_API_HASH) as client:
-        client.flood_sleep_threshold = 120
+    full = await client(GetFullChannelRequest(entity))
+    chat = full.chats[0] if full.chats else None
+    full_chat = full.full_chat
 
-        entity = coerce_entity(TG_ENTITY)
-        entity = await client.get_entity(entity)
+    metadata = {
+        "id": chat.id if chat else None,
+        "title": getattr(chat, "title", None),
+        "about": getattr(full_chat, "about", None),
+        "members_count": getattr(full_chat, "participants_count", None),
+    }
 
-        full = await client(GetFullChannelRequest(entity))
-        chat = full.chats[0] if full.chats else None
-        full_chat = full.full_chat
+    CHANNEL_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(CHANNEL_FILE, "w", encoding="utf-8") as f:
+        json.dump(metadata, f, ensure_ascii=False, indent=2)
 
-        metadata = {
-            "id": chat.id if chat else None,
-            "title": getattr(chat, "title", None),
-            "about": getattr(full_chat, "about", None),
-            "members_count": getattr(full_chat, "participants_count", None),
-        }
-
-        CHANNEL_FILE.parent.mkdir(parents=True, exist_ok=True)
-        with open(CHANNEL_FILE, "w", encoding="utf-8") as f:
-            json.dump(metadata, f, ensure_ascii=False, indent=2)
-
-        log.info("Wrote channel metadata to %s", CHANNEL_FILE)
+    log.info("Wrote channel metadata to %s", CHANNEL_FILE)
 
 
-async def fetch_forums() -> int:
+async def fetch_forums(client: TelegramClient, entity) -> int:
     """Fetch forum topics with full metadata and write to forums.json.
 
     Captures topic ID, title, open/closed status, creation date, and icon.
@@ -301,60 +298,54 @@ async def fetch_forums() -> int:
     """
     from telethon.tl.functions.messages import GetForumTopicsRequest
 
-    async with TelegramClient(TG_SESSION, TG_API_ID, TG_API_HASH) as client:
-        client.flood_sleep_threshold = 120
+    forums: list[dict] = []
+    offset_date: datetime | None = None
+    offset_id = 0
+    offset_topic = 0
 
-        entity = coerce_entity(TG_ENTITY)
-        entity = await client.get_entity(entity)
+    log.info("Fetching forum topics...")
 
-        forums: list[dict] = []
-        offset_date: datetime | None = None
-        offset_id = 0
-        offset_topic = 0
+    while True:
+        result = await client(GetForumTopicsRequest(
+            peer=entity,
+            offset_date=offset_date,
+            offset_id=offset_id,
+            offset_topic=offset_topic,
+            limit=100,
+        ))
 
-        log.info("Fetching forum topics...")
+        if not result.topics:
+            break
 
-        while True:
-            result = await client(GetForumTopicsRequest(
-                peer=entity,
-                offset_date=offset_date,
-                offset_id=offset_id,
-                offset_topic=offset_topic,
-                limit=100,
-            ))
+        for topic in result.topics:
+            tid = getattr(topic, "id", None)
+            title = getattr(topic, "title", None)
+            if tid is None:
+                continue
+            forums.append({
+                "id": tid,
+                "title": title,
+                "closed": bool(getattr(topic, "closed", False)),
+                "date": str(getattr(topic, "date", None)),
+                "icon_emoji_id": getattr(topic, "icon_emoji_id", None),
+            })
 
-            if not result.topics:
-                break
+        # Pagination: use the last topic for offsets
+        last = result.topics[-1]
+        offset_id = getattr(last, "top_message", 0)
+        offset_topic = getattr(last, "id", 0)
+        offset_date = getattr(last, "date", None)
 
-            for topic in result.topics:
-                tid = getattr(topic, "id", None)
-                title = getattr(topic, "title", None)
-                if tid is None:
-                    continue
-                forums.append({
-                    "id": tid,
-                    "title": title,
-                    "closed": bool(getattr(topic, "closed", False)),
-                    "date": str(getattr(topic, "date", None)),
-                    "icon_emoji_id": getattr(topic, "icon_emoji_id", None),
-                })
+        if len(result.topics) < 100:
+            break
 
-            # Pagination: use the last topic for offsets
-            last = result.topics[-1]
-            offset_id = getattr(last, "top_message", 0)
-            offset_topic = getattr(last, "id", 0)
-            offset_date = getattr(last, "date", None)
+        await asyncio.sleep(3)
 
-            if len(result.topics) < 100:
-                break
+    FORUMS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(FORUMS_FILE, "w", encoding="utf-8") as f:
+        json.dump(forums, f, ensure_ascii=False, indent=2)
 
-            await asyncio.sleep(0.5)
-
-        FORUMS_FILE.parent.mkdir(parents=True, exist_ok=True)
-        with open(FORUMS_FILE, "w", encoding="utf-8") as f:
-            json.dump(forums, f, ensure_ascii=False, indent=2)
-
-        log.info("Fetched %d forum topics to %s", len(forums), FORUMS_FILE)
+    log.info("Fetched %d forum topics to %s", len(forums), FORUMS_FILE)
 
     return len(forums)
 
@@ -397,15 +388,24 @@ def main() -> None:
 
 
 async def _run_extract(days: int = EXTRACT_DAYS, full: bool = False) -> tuple[int, int]:
-    """Run message, participant, and channel metadata extraction."""
-    if full:
-        msg_count = await fetch_full()
-    else:
-        msg_count = await fetch(days=days)
-    p_count = await fetch_participants()
-    await fetch_channel_metadata()
-    await fetch_forums()
-    return msg_count, p_count
+    """Run message, participant, and channel metadata extraction.
+
+    Opens a single TelegramClient session shared across all fetch functions.
+    """
+    async with TelegramClient(TG_SESSION, TG_API_ID, TG_API_HASH) as client:
+        client.flood_sleep_threshold = 300
+
+        entity = coerce_entity(TG_ENTITY)
+        entity = await client.get_entity(entity)
+
+        if full:
+            msg_count = await fetch_full(client, entity)
+        else:
+            msg_count = await fetch(client, entity, days=days)
+        p_count = await fetch_participants(client, entity)
+        await fetch_channel_metadata(client, entity)
+        await fetch_forums(client, entity)
+        return msg_count, p_count
 
 
 if __name__ == "__main__":

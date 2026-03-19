@@ -33,7 +33,8 @@ Telegram API
 ## Features
 
 - **SIOC-aligned data model** — 13 classes mapped to SIOC, FOAF, Dublin Core, and SKOS ontologies
-- **Incremental extraction** — date-bounded (`--days N`), full history with incremental updates (`--full`), or fresh re-fetch (`--fresh`)
+- **Incremental extraction** — date-bounded (`--days N`), full history with incremental updates (`--full`), or fresh re-fetch (`--fresh`). Crash-safe: resumes from checkpoint if interrupted
+- **Account-safe rate limiting** — ~20 requests/minute via Telethon's `wait_time=3`, auto-waits through flood bans up to 5 minutes, single client session per run
 - **Forum hierarchy** — Community → Site → Forum (supergroup + topic channels) → Thread
 - **Entity extraction** — hashtags → `skos:Concept`, URLs → `LinkedDocument` with preview metadata, media → `Attachment` with MIME types
 - **Reply + forward graphs** — `sioc:reply_of`/`has_reply` (both directions) and `sioc:sibling` for cross-posted content
@@ -142,7 +143,7 @@ First run will prompt for Telegram phone number and verification code.
 | `just build` | Build only: transform → serialize → load (skips extraction) |
 | `just extract` | Extract last 30 days (default) |
 | `just extract 7` | Extract last N days |
-| `just extract-full` | Full history, incremental on subsequent runs |
+| `just extract-full` | Full history, incremental on subsequent runs (crash-safe) |
 | `just extract-fresh` | Clear state, re-fetch everything |
 | `just transform` | Raw JSON → LinkML graph document |
 | `just serialize` | LinkML JSON → RDF/Turtle |

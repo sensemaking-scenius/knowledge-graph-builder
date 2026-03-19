@@ -54,10 +54,19 @@ Telegram API
 |---------|------|----------|
 | `just extract` | Date-bounded | Last 30 days (default). Overwrites `messages.jsonl` |
 | `just extract 7` | Date-bounded | Last N days (positional arg). Overwrites `messages.jsonl` |
-| `just extract-full` | Full history | First run: fetches everything. Subsequent runs: incremental (only new messages since last run) |
+| `just extract-full` | Full history | First run: fetches everything. Subsequent runs: incremental (only new messages since last run). Resumes from checkpoint if interrupted |
 | `just extract-fresh` | Fresh full | Clears `extract_state.json`, then runs full history from scratch |
 
 State is tracked in `data/raw/extract_state.json` — stores `newest_msg_id`, `oldest_msg_id`, `total_fetched`, and `complete` flag for incremental logic.
+
+## Rate limiting & account safety
+
+All extraction uses conservative rate limiting to protect the Telegram account:
+
+- **`wait_time=3`** on all `iter_messages` calls — Telethon's built-in throttle adding 3 seconds between API batches (~20 requests/minute)
+- **`flood_sleep_threshold=300`** — auto-waits through up to 5-minute flood bans instead of crashing
+- **Single client session** — one `TelegramClient` is opened per run and shared across all fetch functions (messages, participants, channel metadata, forums)
+- **Crash resume** — full history extraction checkpoints every 200 messages; if interrupted, the next `just extract-full` resumes from the last checkpoint instead of starting over
 
 ## Shortcut recipes
 
