@@ -10,7 +10,7 @@ from telethon.tl.types import PeerChannel
 
 from builder.config import (
     TG_API_ID, TG_API_HASH, TG_SESSION, TG_ENTITY,
-    MESSAGES_FILE, PARTICIPANTS_FILE, CHANNEL_FILE, TOPICS_FILE,
+    MESSAGES_FILE, PARTICIPANTS_FILE, CHANNEL_FILE, FORUMS_FILE,
     STATE_FILE, EXTRACT_DAYS,
 )
 
@@ -293,9 +293,10 @@ async def fetch_channel_metadata() -> None:
         log.info("Wrote channel metadata to %s", CHANNEL_FILE)
 
 
-async def fetch_forum_topics() -> int:
-    """Fetch forum topic names and write to topics.json.
+async def fetch_forums() -> int:
+    """Fetch forum topics with full metadata and write to forums.json.
 
+    Captures topic ID, title, open/closed status, creation date, and icon.
     Returns the number of topics written.
     """
     from telethon.tl.functions.messages import GetForumTopicsRequest
@@ -306,7 +307,7 @@ async def fetch_forum_topics() -> int:
         entity = coerce_entity(TG_ENTITY)
         entity = await client.get_entity(entity)
 
-        topics: dict[int, str] = {}
+        forums: list[dict] = []
         offset_date: datetime | None = None
         offset_id = 0
         offset_topic = 0
@@ -328,8 +329,15 @@ async def fetch_forum_topics() -> int:
             for topic in result.topics:
                 tid = getattr(topic, "id", None)
                 title = getattr(topic, "title", None)
-                if tid is not None and title:
-                    topics[tid] = title
+                if tid is None:
+                    continue
+                forums.append({
+                    "id": tid,
+                    "title": title,
+                    "closed": bool(getattr(topic, "closed", False)),
+                    "date": str(getattr(topic, "date", None)),
+                    "icon_emoji_id": getattr(topic, "icon_emoji_id", None),
+                })
 
             # Pagination: use the last topic for offsets
             last = result.topics[-1]
@@ -342,13 +350,13 @@ async def fetch_forum_topics() -> int:
 
             await asyncio.sleep(0.5)
 
-        TOPICS_FILE.parent.mkdir(parents=True, exist_ok=True)
-        with open(TOPICS_FILE, "w", encoding="utf-8") as f:
-            json.dump(topics, f, ensure_ascii=False, indent=2)
+        FORUMS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with open(FORUMS_FILE, "w", encoding="utf-8") as f:
+            json.dump(forums, f, ensure_ascii=False, indent=2)
 
-        log.info("Fetched %d forum topics to %s", len(topics), TOPICS_FILE)
+        log.info("Fetched %d forum topics to %s", len(forums), FORUMS_FILE)
 
-    return len(topics)
+    return len(forums)
 
 
 # ---------------------------------------------------------------------------
@@ -396,7 +404,7 @@ async def _run_extract(days: int = EXTRACT_DAYS, full: bool = False) -> tuple[in
         msg_count = await fetch(days=days)
     p_count = await fetch_participants()
     await fetch_channel_metadata()
-    await fetch_forum_topics()
+    await fetch_forums()
     return msg_count, p_count
 
 

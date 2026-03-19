@@ -18,15 +18,12 @@ def main() -> None:
 
     data = TURTLE_FILE.read_bytes()
 
-    # Clear existing data, then load fresh
-    req_clear = Request(OXIGRAPH_STORE_URL, method="PUT", data=b"")
-    req_clear.add_header("Content-Type", "application/x-turtle")
-
-    req_load = Request(OXIGRAPH_STORE_URL, method="POST", data=data)
-    req_load.add_header("Content-Type", "application/x-turtle")
+    # PUT to default graph (replaces all existing data)
+    default_graph_url = OXIGRAPH_STORE_URL + "?default"
+    req_load = Request(default_graph_url, method="PUT", data=data)
+    req_load.add_header("Content-Type", "text/turtle")
 
     try:
-        urlopen(req_clear)
         urlopen(req_load)
     except URLError as e:
         print(f"Failed to connect to Oxigraph at {OXIGRAPH_STORE_URL}")

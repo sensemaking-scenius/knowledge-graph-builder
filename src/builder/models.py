@@ -1,9 +1,9 @@
 # Auto generated from sioc.yaml by pythongen.py version: 0.0.1
-# Generation date: 2026-03-11T11:32:36
-# Schema: sioc_min
+# Generation date: 2026-03-19T14:22:52
+# Schema: sioc
 #
-# id: https://example.org/knowledge-graph-builder/sioc-min
-# description: Minimal SIOC-aligned schema for Telegram-derived social data
+# id: https://example.org/knowledge-graph-builder/sioc
+# description: SIOC-aligned schema for Telegram-derived social knowledge graphs
 # license: https://creativecommons.org/publicdomain/zero/1.0/
 
 import dataclasses
@@ -63,12 +63,14 @@ metamodel_version = "1.7.0"
 version = None
 
 # Namespaces
+DC = CurieNamespace('dc', 'http://purl.org/dc/elements/1.1/')
 DCTERMS = CurieNamespace('dcterms', 'http://purl.org/dc/terms/')
 FOAF = CurieNamespace('foaf', 'http://xmlns.com/foaf/0.1/')
 LINKML = CurieNamespace('linkml', 'https://w3id.org/linkml/')
 RDFS = CurieNamespace('rdfs', 'http://www.w3.org/2000/01/rdf-schema#')
-SCHEMA = CurieNamespace('schema', 'http://schema.org/')
 SIOC = CurieNamespace('sioc', 'http://rdfs.org/sioc/ns#')
+SIOC_TYPES = CurieNamespace('sioc_types', 'http://rdfs.org/sioc/types#')
+SKOS = CurieNamespace('skos', 'http://www.w3.org/2004/02/skos/core#')
 TG = CurieNamespace('tg', 'https://example.org/telegram/')
 DEFAULT_ = TG
 
@@ -84,19 +86,47 @@ class CommunityId(extended_str):
     pass
 
 
+class SiteId(extended_str):
+    pass
+
+
+class ForumId(extended_str):
+    pass
+
+
 class ThreadId(extended_str):
     pass
 
 
-class UserAccountId(extended_str):
+class UserId(extended_str):
     pass
 
 
-class LinkId(extended_str):
+class PersonId(extended_str):
     pass
 
 
 class PostId(extended_str):
+    pass
+
+
+class PollId(extended_str):
+    pass
+
+
+class AttachmentId(extended_str):
+    pass
+
+
+class LinkedDocumentId(extended_str):
+    pass
+
+
+class ConceptId(extended_str):
+    pass
+
+
+class ReactionId(extended_str):
     pass
 
 
@@ -111,10 +141,16 @@ class GraphDocument(YAMLRoot):
 
     id: Union[str, GraphDocumentId] = None
     community: Optional[Union[dict, "Community"]] = None
-    users: Optional[Union[dict[Union[str, UserAccountId], Union[dict, "UserAccount"]], list[Union[dict, "UserAccount"]]]] = empty_dict()
-    links: Optional[Union[list[Union[str, LinkId]], dict[Union[str, LinkId], Union[dict, "Link"]]]] = empty_dict()
+    site: Optional[Union[dict, "Site"]] = None
+    forums: Optional[Union[dict[Union[str, ForumId], Union[dict, "Forum"]], list[Union[dict, "Forum"]]]] = empty_dict()
+    users: Optional[Union[dict[Union[str, UserId], Union[dict, "User"]], list[Union[dict, "User"]]]] = empty_dict()
+    persons: Optional[Union[dict[Union[str, PersonId], Union[dict, "Person"]], list[Union[dict, "Person"]]]] = empty_dict()
     posts: Optional[Union[dict[Union[str, PostId], Union[dict, "Post"]], list[Union[dict, "Post"]]]] = empty_dict()
     threads: Optional[Union[dict[Union[str, ThreadId], Union[dict, "Thread"]], list[Union[dict, "Thread"]]]] = empty_dict()
+    concepts: Optional[Union[dict[Union[str, ConceptId], Union[dict, "Concept"]], list[Union[dict, "Concept"]]]] = empty_dict()
+    attachments: Optional[Union[dict[Union[str, AttachmentId], Union[dict, "Attachment"]], list[Union[dict, "Attachment"]]]] = empty_dict()
+    linked_documents: Optional[Union[dict[Union[str, LinkedDocumentId], Union[dict, "LinkedDocument"]], list[Union[dict, "LinkedDocument"]]]] = empty_dict()
+    polls: Optional[Union[dict[Union[str, PollId], Union[dict, "Poll"]], list[Union[dict, "Poll"]]]] = empty_dict()
 
     def __post_init__(self, *_: str, **kwargs: Any):
         if self._is_empty(self.id):
@@ -125,13 +161,26 @@ class GraphDocument(YAMLRoot):
         if self.community is not None and not isinstance(self.community, Community):
             self.community = Community(**as_dict(self.community))
 
-        self._normalize_inlined_as_dict(slot_name="users", slot_type=UserAccount, key_name="id", keyed=True)
+        if self.site is not None and not isinstance(self.site, Site):
+            self.site = Site(**as_dict(self.site))
 
-        self._normalize_inlined_as_dict(slot_name="links", slot_type=Link, key_name="id", keyed=True)
+        self._normalize_inlined_as_dict(slot_name="forums", slot_type=Forum, key_name="id", keyed=True)
+
+        self._normalize_inlined_as_dict(slot_name="users", slot_type=User, key_name="id", keyed=True)
+
+        self._normalize_inlined_as_dict(slot_name="persons", slot_type=Person, key_name="id", keyed=True)
 
         self._normalize_inlined_as_dict(slot_name="posts", slot_type=Post, key_name="id", keyed=True)
 
         self._normalize_inlined_as_dict(slot_name="threads", slot_type=Thread, key_name="id", keyed=True)
+
+        self._normalize_inlined_as_dict(slot_name="concepts", slot_type=Concept, key_name="id", keyed=True)
+
+        self._normalize_inlined_as_dict(slot_name="attachments", slot_type=Attachment, key_name="id", keyed=True)
+
+        self._normalize_inlined_as_dict(slot_name="linked_documents", slot_type=LinkedDocument, key_name="id", keyed=True)
+
+        self._normalize_inlined_as_dict(slot_name="polls", slot_type=Poll, key_name="id", keyed=True)
 
         super().__post_init__(**kwargs)
 
@@ -148,7 +197,7 @@ class Community(YAMLRoot):
     id: Union[str, CommunityId] = None
     name: Optional[str] = None
     description: Optional[str] = None
-    member_count: Optional[int] = None
+    has_part: Optional[Union[str, SiteId]] = None
 
     def __post_init__(self, *_: str, **kwargs: Any):
         if self._is_empty(self.id):
@@ -162,8 +211,87 @@ class Community(YAMLRoot):
         if self.description is not None and not isinstance(self.description, str):
             self.description = str(self.description)
 
-        if self.member_count is not None and not isinstance(self.member_count, int):
-            self.member_count = int(self.member_count)
+        if self.has_part is not None and not isinstance(self.has_part, SiteId):
+            self.has_part = SiteId(self.has_part)
+
+        super().__post_init__(**kwargs)
+
+
+@dataclass(repr=False)
+class Site(YAMLRoot):
+    _inherited_slots: ClassVar[list[str]] = []
+
+    class_class_uri: ClassVar[URIRef] = SIOC["Site"]
+    class_class_curie: ClassVar[str] = "sioc:Site"
+    class_name: ClassVar[str] = "Site"
+    class_model_uri: ClassVar[URIRef] = TG.Site
+
+    id: Union[str, SiteId] = None
+    name: Optional[str] = None
+    host_of: Optional[Union[Union[str, ForumId], list[Union[str, ForumId]]]] = empty_list()
+
+    def __post_init__(self, *_: str, **kwargs: Any):
+        if self._is_empty(self.id):
+            self.MissingRequiredField("id")
+        if not isinstance(self.id, SiteId):
+            self.id = SiteId(self.id)
+
+        if self.name is not None and not isinstance(self.name, str):
+            self.name = str(self.name)
+
+        if not isinstance(self.host_of, list):
+            self.host_of = [self.host_of] if self.host_of is not None else []
+        self.host_of = [v if isinstance(v, ForumId) else ForumId(v) for v in self.host_of]
+
+        super().__post_init__(**kwargs)
+
+
+@dataclass(repr=False)
+class Forum(YAMLRoot):
+    _inherited_slots: ClassVar[list[str]] = []
+
+    class_class_uri: ClassVar[URIRef] = SIOC["Forum"]
+    class_class_curie: ClassVar[str] = "sioc:Forum"
+    class_name: ClassVar[str] = "Forum"
+    class_model_uri: ClassVar[URIRef] = TG.Forum
+
+    id: Union[str, ForumId] = None
+    name: Optional[str] = None
+    description: Optional[str] = None
+    has_host: Optional[Union[str, SiteId]] = None
+    has_parent_forum: Optional[Union[str, ForumId]] = None
+    parent_of: Optional[Union[Union[str, ForumId], list[Union[str, ForumId]]]] = empty_list()
+    container_of: Optional[Union[Union[str, PostId], list[Union[str, PostId]]]] = empty_list()
+    closed: Optional[Union[bool, Bool]] = None
+
+    def __post_init__(self, *_: str, **kwargs: Any):
+        if self._is_empty(self.id):
+            self.MissingRequiredField("id")
+        if not isinstance(self.id, ForumId):
+            self.id = ForumId(self.id)
+
+        if self.name is not None and not isinstance(self.name, str):
+            self.name = str(self.name)
+
+        if self.description is not None and not isinstance(self.description, str):
+            self.description = str(self.description)
+
+        if self.has_host is not None and not isinstance(self.has_host, SiteId):
+            self.has_host = SiteId(self.has_host)
+
+        if self.has_parent_forum is not None and not isinstance(self.has_parent_forum, ForumId):
+            self.has_parent_forum = ForumId(self.has_parent_forum)
+
+        if not isinstance(self.parent_of, list):
+            self.parent_of = [self.parent_of] if self.parent_of is not None else []
+        self.parent_of = [v if isinstance(v, ForumId) else ForumId(v) for v in self.parent_of]
+
+        if not isinstance(self.container_of, list):
+            self.container_of = [self.container_of] if self.container_of is not None else []
+        self.container_of = [v if isinstance(v, PostId) else PostId(v) for v in self.container_of]
+
+        if self.closed is not None and not isinstance(self.closed, Bool):
+            self.closed = Bool(self.closed)
 
         super().__post_init__(**kwargs)
 
@@ -179,7 +307,7 @@ class Thread(YAMLRoot):
 
     id: Union[str, ThreadId] = None
     name: Optional[str] = None
-    has_parent: Optional[Union[str, CommunityId]] = None
+    has_parent_forum: Optional[Union[str, ForumId]] = None
 
     def __post_init__(self, *_: str, **kwargs: Any):
         if self._is_empty(self.id):
@@ -190,36 +318,37 @@ class Thread(YAMLRoot):
         if self.name is not None and not isinstance(self.name, str):
             self.name = str(self.name)
 
-        if self.has_parent is not None and not isinstance(self.has_parent, CommunityId):
-            self.has_parent = CommunityId(self.has_parent)
+        if self.has_parent_forum is not None and not isinstance(self.has_parent_forum, ForumId):
+            self.has_parent_forum = ForumId(self.has_parent_forum)
 
         super().__post_init__(**kwargs)
 
 
 @dataclass(repr=False)
-class UserAccount(YAMLRoot):
+class User(YAMLRoot):
     _inherited_slots: ClassVar[list[str]] = []
 
-    class_class_uri: ClassVar[URIRef] = SIOC["UserAccount"]
-    class_class_curie: ClassVar[str] = "sioc:UserAccount"
-    class_name: ClassVar[str] = "UserAccount"
-    class_model_uri: ClassVar[URIRef] = TG.UserAccount
+    class_class_uri: ClassVar[URIRef] = SIOC["User"]
+    class_class_curie: ClassVar[str] = "sioc:User"
+    class_name: ClassVar[str] = "User"
+    class_model_uri: ClassVar[URIRef] = TG.User
 
-    id: Union[str, UserAccountId] = None
-    name: Optional[str] = None
+    id: Union[str, UserId] = None
+    sioc_name: Optional[str] = None
     username: Optional[str] = None
     is_bot: Optional[Union[bool, Bool]] = None
-    is_verified: Optional[Union[bool, Bool]] = None
-    is_premium: Optional[Union[bool, Bool]] = None
+    account_of: Optional[Union[str, PersonId]] = None
+    avatar: Optional[str] = None
+    user_description: Optional[str] = None
 
     def __post_init__(self, *_: str, **kwargs: Any):
         if self._is_empty(self.id):
             self.MissingRequiredField("id")
-        if not isinstance(self.id, UserAccountId):
-            self.id = UserAccountId(self.id)
+        if not isinstance(self.id, UserId):
+            self.id = UserId(self.id)
 
-        if self.name is not None and not isinstance(self.name, str):
-            self.name = str(self.name)
+        if self.sioc_name is not None and not isinstance(self.sioc_name, str):
+            self.sioc_name = str(self.sioc_name)
 
         if self.username is not None and not isinstance(self.username, str):
             self.username = str(self.username)
@@ -227,31 +356,43 @@ class UserAccount(YAMLRoot):
         if self.is_bot is not None and not isinstance(self.is_bot, Bool):
             self.is_bot = Bool(self.is_bot)
 
-        if self.is_verified is not None and not isinstance(self.is_verified, Bool):
-            self.is_verified = Bool(self.is_verified)
+        if self.account_of is not None and not isinstance(self.account_of, PersonId):
+            self.account_of = PersonId(self.account_of)
 
-        if self.is_premium is not None and not isinstance(self.is_premium, Bool):
-            self.is_premium = Bool(self.is_premium)
+        if self.avatar is not None and not isinstance(self.avatar, str):
+            self.avatar = str(self.avatar)
+
+        if self.user_description is not None and not isinstance(self.user_description, str):
+            self.user_description = str(self.user_description)
 
         super().__post_init__(**kwargs)
 
 
 @dataclass(repr=False)
-class Link(YAMLRoot):
+class Person(YAMLRoot):
     _inherited_slots: ClassVar[list[str]] = []
 
-    class_class_uri: ClassVar[URIRef] = SCHEMA["URL"]
-    class_class_curie: ClassVar[str] = "schema:URL"
-    class_name: ClassVar[str] = "Link"
-    class_model_uri: ClassVar[URIRef] = TG.Link
+    class_class_uri: ClassVar[URIRef] = FOAF["Person"]
+    class_class_curie: ClassVar[str] = "foaf:Person"
+    class_name: ClassVar[str] = "Person"
+    class_model_uri: ClassVar[URIRef] = TG.Person
 
-    id: Union[str, LinkId] = None
+    id: Union[str, PersonId] = None
+    name: Optional[str] = None
+    holds_account: Optional[Union[Union[str, UserId], list[Union[str, UserId]]]] = empty_list()
 
     def __post_init__(self, *_: str, **kwargs: Any):
         if self._is_empty(self.id):
             self.MissingRequiredField("id")
-        if not isinstance(self.id, LinkId):
-            self.id = LinkId(self.id)
+        if not isinstance(self.id, PersonId):
+            self.id = PersonId(self.id)
+
+        if self.name is not None and not isinstance(self.name, str):
+            self.name = str(self.name)
+
+        if not isinstance(self.holds_account, list):
+            self.holds_account = [self.holds_account] if self.holds_account is not None else []
+        self.holds_account = [v if isinstance(v, UserId) else UserId(v) for v in self.holds_account]
 
         super().__post_init__(**kwargs)
 
@@ -269,24 +410,20 @@ class Post(YAMLRoot):
     content: Optional[str] = None
     created: Optional[Union[str, XSDDateTime]] = None
     modified: Optional[Union[str, XSDDateTime]] = None
-    has_creator: Optional[Union[str, UserAccountId]] = None
-    has_container: Optional[Union[str, CommunityId]] = None
-    has_thread: Optional[Union[str, ThreadId]] = None
-    reply_to: Optional[Union[str, PostId]] = None
-    links_to: Optional[Union[Union[str, LinkId], list[Union[str, LinkId]]]] = empty_list()
+    has_creator: Optional[Union[str, UserId]] = None
+    has_container: Optional[Union[str, ForumId]] = None
+    reply_of: Optional[Union[str, PostId]] = None
+    has_reply: Optional[Union[Union[str, PostId], list[Union[str, PostId]]]] = empty_list()
+    sibling: Optional[Union[str, PostId]] = None
+    links_to: Optional[Union[Union[str, LinkedDocumentId], list[Union[str, LinkedDocumentId]]]] = empty_list()
+    attachment: Optional[Union[Union[str, AttachmentId], list[Union[str, AttachmentId]]]] = empty_list()
+    has_poll: Optional[Union[str, PollId]] = None
+    topics: Optional[Union[Union[str, ConceptId], list[Union[str, ConceptId]]]] = empty_list()
     forwards: Optional[int] = None
     pinned: Optional[Union[bool, Bool]] = None
-    topics: Optional[Union[str, list[str]]] = empty_list()
-    mentions: Optional[Union[str, list[str]]] = empty_list()
-    entity_links: Optional[Union[Union[str, LinkId], list[Union[str, LinkId]]]] = empty_list()
-    num_views: Optional[int] = None
-    num_replies: Optional[int] = None
-    reaction_count: Optional[int] = None
-    reactions: Optional[Union[str, list[str]]] = empty_list()
-    media_type: Optional[Union[str, "MediaType"]] = None
-    forwarded_from: Optional[str] = None
-    is_service: Optional[Union[bool, Bool]] = None
-    service_action: Optional[Union[str, "ServiceActionType"]] = None
+    quote_text: Optional[str] = None
+    grouped_id: Optional[str] = None
+    via_bot: Optional[Union[str, UserId]] = None
 
     def __post_init__(self, *_: str, **kwargs: Any):
         if self._is_empty(self.id):
@@ -303,21 +440,36 @@ class Post(YAMLRoot):
         if self.modified is not None and not isinstance(self.modified, XSDDateTime):
             self.modified = XSDDateTime(self.modified)
 
-        if self.has_creator is not None and not isinstance(self.has_creator, UserAccountId):
-            self.has_creator = UserAccountId(self.has_creator)
+        if self.has_creator is not None and not isinstance(self.has_creator, UserId):
+            self.has_creator = UserId(self.has_creator)
 
-        if self.has_container is not None and not isinstance(self.has_container, CommunityId):
-            self.has_container = CommunityId(self.has_container)
+        if self.has_container is not None and not isinstance(self.has_container, ForumId):
+            self.has_container = ForumId(self.has_container)
 
-        if self.has_thread is not None and not isinstance(self.has_thread, ThreadId):
-            self.has_thread = ThreadId(self.has_thread)
+        if self.reply_of is not None and not isinstance(self.reply_of, PostId):
+            self.reply_of = PostId(self.reply_of)
 
-        if self.reply_to is not None and not isinstance(self.reply_to, PostId):
-            self.reply_to = PostId(self.reply_to)
+        if not isinstance(self.has_reply, list):
+            self.has_reply = [self.has_reply] if self.has_reply is not None else []
+        self.has_reply = [v if isinstance(v, PostId) else PostId(v) for v in self.has_reply]
+
+        if self.sibling is not None and not isinstance(self.sibling, PostId):
+            self.sibling = PostId(self.sibling)
 
         if not isinstance(self.links_to, list):
             self.links_to = [self.links_to] if self.links_to is not None else []
-        self.links_to = [v if isinstance(v, LinkId) else LinkId(v) for v in self.links_to]
+        self.links_to = [v if isinstance(v, LinkedDocumentId) else LinkedDocumentId(v) for v in self.links_to]
+
+        if not isinstance(self.attachment, list):
+            self.attachment = [self.attachment] if self.attachment is not None else []
+        self.attachment = [v if isinstance(v, AttachmentId) else AttachmentId(v) for v in self.attachment]
+
+        if self.has_poll is not None and not isinstance(self.has_poll, PollId):
+            self.has_poll = PollId(self.has_poll)
+
+        if not isinstance(self.topics, list):
+            self.topics = [self.topics] if self.topics is not None else []
+        self.topics = [v if isinstance(v, ConceptId) else ConceptId(v) for v in self.topics]
 
         if self.forwards is not None and not isinstance(self.forwards, int):
             self.forwards = int(self.forwards)
@@ -325,42 +477,191 @@ class Post(YAMLRoot):
         if self.pinned is not None and not isinstance(self.pinned, Bool):
             self.pinned = Bool(self.pinned)
 
-        if not isinstance(self.topics, list):
-            self.topics = [self.topics] if self.topics is not None else []
-        self.topics = [v if isinstance(v, str) else str(v) for v in self.topics]
+        if self.quote_text is not None and not isinstance(self.quote_text, str):
+            self.quote_text = str(self.quote_text)
 
-        if not isinstance(self.mentions, list):
-            self.mentions = [self.mentions] if self.mentions is not None else []
-        self.mentions = [v if isinstance(v, str) else str(v) for v in self.mentions]
+        if self.grouped_id is not None and not isinstance(self.grouped_id, str):
+            self.grouped_id = str(self.grouped_id)
 
-        if not isinstance(self.entity_links, list):
-            self.entity_links = [self.entity_links] if self.entity_links is not None else []
-        self.entity_links = [v if isinstance(v, LinkId) else LinkId(v) for v in self.entity_links]
+        if self.via_bot is not None and not isinstance(self.via_bot, UserId):
+            self.via_bot = UserId(self.via_bot)
 
-        if self.num_views is not None and not isinstance(self.num_views, int):
-            self.num_views = int(self.num_views)
+        super().__post_init__(**kwargs)
 
-        if self.num_replies is not None and not isinstance(self.num_replies, int):
-            self.num_replies = int(self.num_replies)
 
-        if self.reaction_count is not None and not isinstance(self.reaction_count, int):
-            self.reaction_count = int(self.reaction_count)
+@dataclass(repr=False)
+class Poll(YAMLRoot):
+    _inherited_slots: ClassVar[list[str]] = []
 
-        if not isinstance(self.reactions, list):
-            self.reactions = [self.reactions] if self.reactions is not None else []
-        self.reactions = [v if isinstance(v, str) else str(v) for v in self.reactions]
+    class_class_uri: ClassVar[URIRef] = SIOC_TYPES["Poll"]
+    class_class_curie: ClassVar[str] = "sioc_types:Poll"
+    class_name: ClassVar[str] = "Poll"
+    class_model_uri: ClassVar[URIRef] = TG.Poll
+
+    id: Union[str, PollId] = None
+    question: Optional[str] = None
+    answers: Optional[Union[str, list[str]]] = empty_list()
+    total_voters: Optional[int] = None
+    quiz: Optional[Union[bool, Bool]] = None
+    poll_closed: Optional[Union[bool, Bool]] = None
+    public_voters: Optional[Union[bool, Bool]] = None
+    multiple_choice: Optional[Union[bool, Bool]] = None
+
+    def __post_init__(self, *_: str, **kwargs: Any):
+        if self._is_empty(self.id):
+            self.MissingRequiredField("id")
+        if not isinstance(self.id, PollId):
+            self.id = PollId(self.id)
+
+        if self.question is not None and not isinstance(self.question, str):
+            self.question = str(self.question)
+
+        if not isinstance(self.answers, list):
+            self.answers = [self.answers] if self.answers is not None else []
+        self.answers = [v if isinstance(v, str) else str(v) for v in self.answers]
+
+        if self.total_voters is not None and not isinstance(self.total_voters, int):
+            self.total_voters = int(self.total_voters)
+
+        if self.quiz is not None and not isinstance(self.quiz, Bool):
+            self.quiz = Bool(self.quiz)
+
+        if self.poll_closed is not None and not isinstance(self.poll_closed, Bool):
+            self.poll_closed = Bool(self.poll_closed)
+
+        if self.public_voters is not None and not isinstance(self.public_voters, Bool):
+            self.public_voters = Bool(self.public_voters)
+
+        if self.multiple_choice is not None and not isinstance(self.multiple_choice, Bool):
+            self.multiple_choice = Bool(self.multiple_choice)
+
+        super().__post_init__(**kwargs)
+
+
+@dataclass(repr=False)
+class Attachment(YAMLRoot):
+    _inherited_slots: ClassVar[list[str]] = []
+
+    class_class_uri: ClassVar[URIRef] = FOAF["Document"]
+    class_class_curie: ClassVar[str] = "foaf:Document"
+    class_name: ClassVar[str] = "Attachment"
+    class_model_uri: ClassVar[URIRef] = TG.Attachment
+
+    id: Union[str, AttachmentId] = None
+    format: Optional[str] = None
+    extent: Optional[int] = None
+    media_type: Optional[Union[str, "MediaType"]] = None
+    duration: Optional[int] = None
+
+    def __post_init__(self, *_: str, **kwargs: Any):
+        if self._is_empty(self.id):
+            self.MissingRequiredField("id")
+        if not isinstance(self.id, AttachmentId):
+            self.id = AttachmentId(self.id)
+
+        if self.format is not None and not isinstance(self.format, str):
+            self.format = str(self.format)
+
+        if self.extent is not None and not isinstance(self.extent, int):
+            self.extent = int(self.extent)
 
         if self.media_type is not None and not isinstance(self.media_type, MediaType):
             self.media_type = MediaType(self.media_type)
 
-        if self.forwarded_from is not None and not isinstance(self.forwarded_from, str):
-            self.forwarded_from = str(self.forwarded_from)
+        if self.duration is not None and not isinstance(self.duration, int):
+            self.duration = int(self.duration)
 
-        if self.is_service is not None and not isinstance(self.is_service, Bool):
-            self.is_service = Bool(self.is_service)
+        super().__post_init__(**kwargs)
 
-        if self.service_action is not None and not isinstance(self.service_action, ServiceActionType):
-            self.service_action = ServiceActionType(self.service_action)
+
+@dataclass(repr=False)
+class LinkedDocument(YAMLRoot):
+    _inherited_slots: ClassVar[list[str]] = []
+
+    class_class_uri: ClassVar[URIRef] = FOAF["Document"]
+    class_class_curie: ClassVar[str] = "foaf:Document"
+    class_name: ClassVar[str] = "LinkedDocument"
+    class_model_uri: ClassVar[URIRef] = TG.LinkedDocument
+
+    id: Union[str, LinkedDocumentId] = None
+    title: Optional[str] = None
+    doc_description: Optional[str] = None
+    doc_creator: Optional[str] = None
+    site_name: Optional[str] = None
+
+    def __post_init__(self, *_: str, **kwargs: Any):
+        if self._is_empty(self.id):
+            self.MissingRequiredField("id")
+        if not isinstance(self.id, LinkedDocumentId):
+            self.id = LinkedDocumentId(self.id)
+
+        if self.title is not None and not isinstance(self.title, str):
+            self.title = str(self.title)
+
+        if self.doc_description is not None and not isinstance(self.doc_description, str):
+            self.doc_description = str(self.doc_description)
+
+        if self.doc_creator is not None and not isinstance(self.doc_creator, str):
+            self.doc_creator = str(self.doc_creator)
+
+        if self.site_name is not None and not isinstance(self.site_name, str):
+            self.site_name = str(self.site_name)
+
+        super().__post_init__(**kwargs)
+
+
+@dataclass(repr=False)
+class Concept(YAMLRoot):
+    _inherited_slots: ClassVar[list[str]] = []
+
+    class_class_uri: ClassVar[URIRef] = SKOS["Concept"]
+    class_class_curie: ClassVar[str] = "skos:Concept"
+    class_name: ClassVar[str] = "Concept"
+    class_model_uri: ClassVar[URIRef] = TG.Concept
+
+    id: Union[str, ConceptId] = None
+    pref_label: Optional[str] = None
+
+    def __post_init__(self, *_: str, **kwargs: Any):
+        if self._is_empty(self.id):
+            self.MissingRequiredField("id")
+        if not isinstance(self.id, ConceptId):
+            self.id = ConceptId(self.id)
+
+        if self.pref_label is not None and not isinstance(self.pref_label, str):
+            self.pref_label = str(self.pref_label)
+
+        super().__post_init__(**kwargs)
+
+
+@dataclass(repr=False)
+class Reaction(YAMLRoot):
+    _inherited_slots: ClassVar[list[str]] = []
+
+    class_class_uri: ClassVar[URIRef] = TG["Reaction"]
+    class_class_curie: ClassVar[str] = "tg:Reaction"
+    class_name: ClassVar[str] = "Reaction"
+    class_model_uri: ClassVar[URIRef] = TG.Reaction
+
+    id: Union[str, ReactionId] = None
+    reactor: Optional[Union[str, UserId]] = None
+    emoji: Optional[str] = None
+    target: Optional[Union[str, PostId]] = None
+
+    def __post_init__(self, *_: str, **kwargs: Any):
+        if self._is_empty(self.id):
+            self.MissingRequiredField("id")
+        if not isinstance(self.id, ReactionId):
+            self.id = ReactionId(self.id)
+
+        if self.reactor is not None and not isinstance(self.reactor, UserId):
+            self.reactor = UserId(self.reactor)
+
+        if self.emoji is not None and not isinstance(self.emoji, str):
+            self.emoji = str(self.emoji)
+
+        if self.target is not None and not isinstance(self.target, PostId):
+            self.target = PostId(self.target)
 
         super().__post_init__(**kwargs)
 
@@ -371,58 +672,82 @@ class MediaType(EnumDefinitionImpl):
     photo = PermissibleValue(text="photo")
     video = PermissibleValue(text="video")
     document = PermissibleValue(text="document")
-    webpage = PermissibleValue(text="webpage")
     audio = PermissibleValue(text="audio")
+    voice = PermissibleValue(text="voice")
     sticker = PermissibleValue(text="sticker")
+    animation = PermissibleValue(text="animation")
     other = PermissibleValue(text="other")
 
     _defn = EnumDefinition(
         name="MediaType",
     )
 
-class ServiceActionType(EnumDefinitionImpl):
-
-    join = PermissibleValue(text="join")
-    leave = PermissibleValue(text="leave")
-    pin = PermissibleValue(text="pin")
-    title_change = PermissibleValue(text="title_change")
-    photo_change = PermissibleValue(text="photo_change")
-    other = PermissibleValue(text="other")
-
-    _defn = EnumDefinition(
-        name="ServiceActionType",
-    )
-
 # Slots
 class slots:
     pass
 
-slots.id = Slot(uri=DCTERMS.identifier, name="id", curie=DCTERMS.curie('identifier'),
+slots.id = Slot(uri=SIOC.id, name="id", curie=SIOC.curie('id'),
                    model_uri=TG.id, domain=None, range=URIRef)
 
 slots.name = Slot(uri=FOAF.name, name="name", curie=FOAF.curie('name'),
                    model_uri=TG.name, domain=None, range=Optional[str])
 
-slots.description = Slot(uri=DCTERMS.description, name="description", curie=DCTERMS.curie('description'),
-                   model_uri=TG.description, domain=None, range=Optional[str])
+slots.sioc_name = Slot(uri=SIOC.name, name="sioc_name", curie=SIOC.curie('name'),
+                   model_uri=TG.sioc_name, domain=None, range=Optional[str])
 
 slots.username = Slot(uri=FOAF.accountName, name="username", curie=FOAF.curie('accountName'),
                    model_uri=TG.username, domain=None, range=Optional[str])
 
-slots.member_count = Slot(uri=TG.member_count, name="member_count", curie=TG.curie('member_count'),
-                   model_uri=TG.member_count, domain=None, range=Optional[int])
+slots.pref_label = Slot(uri=SKOS.prefLabel, name="pref_label", curie=SKOS.curie('prefLabel'),
+                   model_uri=TG.pref_label, domain=None, range=Optional[str])
 
-slots.is_bot = Slot(uri=TG.is_bot, name="is_bot", curie=TG.curie('is_bot'),
-                   model_uri=TG.is_bot, domain=None, range=Optional[Union[bool, Bool]])
+slots.title = Slot(uri=DC.title, name="title", curie=DC.curie('title'),
+                   model_uri=TG.title, domain=None, range=Optional[str])
 
-slots.is_verified = Slot(uri=TG.is_verified, name="is_verified", curie=TG.curie('is_verified'),
-                   model_uri=TG.is_verified, domain=None, range=Optional[Union[bool, Bool]])
+slots.question = Slot(uri=TG.question, name="question", curie=TG.curie('question'),
+                   model_uri=TG.question, domain=None, range=Optional[str])
 
-slots.is_premium = Slot(uri=TG.is_premium, name="is_premium", curie=TG.curie('is_premium'),
-                   model_uri=TG.is_premium, domain=None, range=Optional[Union[bool, Bool]])
+slots.description = Slot(uri=DCTERMS.description, name="description", curie=DCTERMS.curie('description'),
+                   model_uri=TG.description, domain=None, range=Optional[str])
 
-slots.has_parent = Slot(uri=SIOC.has_parent, name="has_parent", curie=SIOC.curie('has_parent'),
-                   model_uri=TG.has_parent, domain=None, range=Optional[Union[str, CommunityId]])
+slots.doc_description = Slot(uri=DCTERMS.description, name="doc_description", curie=DCTERMS.curie('description'),
+                   model_uri=TG.doc_description, domain=None, range=Optional[str])
+
+slots.user_description = Slot(uri=DCTERMS.description, name="user_description", curie=DCTERMS.curie('description'),
+                   model_uri=TG.user_description, domain=None, range=Optional[str])
+
+slots.has_part = Slot(uri=DCTERMS.hasPart, name="has_part", curie=DCTERMS.curie('hasPart'),
+                   model_uri=TG.has_part, domain=None, range=Optional[Union[str, SiteId]])
+
+slots.has_host = Slot(uri=SIOC.has_host, name="has_host", curie=SIOC.curie('has_host'),
+                   model_uri=TG.has_host, domain=None, range=Optional[Union[str, SiteId]])
+
+slots.has_parent_forum = Slot(uri=SIOC.has_parent, name="has_parent_forum", curie=SIOC.curie('has_parent'),
+                   model_uri=TG.has_parent_forum, domain=None, range=Optional[Union[str, ForumId]])
+
+slots.parent_of = Slot(uri=SIOC.parent_of, name="parent_of", curie=SIOC.curie('parent_of'),
+                   model_uri=TG.parent_of, domain=None, range=Optional[Union[Union[str, ForumId], list[Union[str, ForumId]]]])
+
+slots.host_of = Slot(uri=SIOC.host_of, name="host_of", curie=SIOC.curie('host_of'),
+                   model_uri=TG.host_of, domain=None, range=Optional[Union[Union[str, ForumId], list[Union[str, ForumId]]]])
+
+slots.container_of = Slot(uri=SIOC.container_of, name="container_of", curie=SIOC.curie('container_of'),
+                   model_uri=TG.container_of, domain=None, range=Optional[Union[Union[str, PostId], list[Union[str, PostId]]]])
+
+slots.has_container = Slot(uri=SIOC.has_container, name="has_container", curie=SIOC.curie('has_container'),
+                   model_uri=TG.has_container, domain=None, range=Optional[Union[str, ForumId]])
+
+slots.account_of = Slot(uri=SIOC.account_of, name="account_of", curie=SIOC.curie('account_of'),
+                   model_uri=TG.account_of, domain=None, range=Optional[Union[str, PersonId]])
+
+slots.holds_account = Slot(uri=FOAF.holdsAccount, name="holds_account", curie=FOAF.curie('holdsAccount'),
+                   model_uri=TG.holds_account, domain=None, range=Optional[Union[Union[str, UserId], list[Union[str, UserId]]]])
+
+slots.has_creator = Slot(uri=SIOC.has_creator, name="has_creator", curie=SIOC.curie('has_creator'),
+                   model_uri=TG.has_creator, domain=None, range=Optional[Union[str, UserId]])
+
+slots.via_bot = Slot(uri=TG.via_bot, name="via_bot", curie=TG.curie('via_bot'),
+                   model_uri=TG.via_bot, domain=None, range=Optional[Union[str, UserId]])
 
 slots.content = Slot(uri=SIOC.content, name="content", curie=SIOC.curie('content'),
                    model_uri=TG.content, domain=None, range=Optional[str])
@@ -433,35 +758,26 @@ slots.created = Slot(uri=DCTERMS.created, name="created", curie=DCTERMS.curie('c
 slots.modified = Slot(uri=DCTERMS.modified, name="modified", curie=DCTERMS.curie('modified'),
                    model_uri=TG.modified, domain=None, range=Optional[Union[str, XSDDateTime]])
 
-slots.has_creator = Slot(uri=SIOC.has_creator, name="has_creator", curie=SIOC.curie('has_creator'),
-                   model_uri=TG.has_creator, domain=None, range=Optional[Union[str, UserAccountId]])
+slots.reply_of = Slot(uri=SIOC.reply_of, name="reply_of", curie=SIOC.curie('reply_of'),
+                   model_uri=TG.reply_of, domain=None, range=Optional[Union[str, PostId]])
 
-slots.has_container = Slot(uri=SIOC.has_container, name="has_container", curie=SIOC.curie('has_container'),
-                   model_uri=TG.has_container, domain=None, range=Optional[Union[str, CommunityId]])
+slots.has_reply = Slot(uri=SIOC.has_reply, name="has_reply", curie=SIOC.curie('has_reply'),
+                   model_uri=TG.has_reply, domain=None, range=Optional[Union[Union[str, PostId], list[Union[str, PostId]]]])
 
-slots.has_thread = Slot(uri=TG.has_thread, name="has_thread", curie=TG.curie('has_thread'),
-                   model_uri=TG.has_thread, domain=None, range=Optional[Union[str, ThreadId]])
-
-slots.reply_to = Slot(uri=SIOC.reply_of, name="reply_to", curie=SIOC.curie('reply_of'),
-                   model_uri=TG.reply_to, domain=None, range=Optional[Union[str, PostId]])
+slots.sibling = Slot(uri=SIOC.sibling, name="sibling", curie=SIOC.curie('sibling'),
+                   model_uri=TG.sibling, domain=None, range=Optional[Union[str, PostId]])
 
 slots.links_to = Slot(uri=SIOC.links_to, name="links_to", curie=SIOC.curie('links_to'),
-                   model_uri=TG.links_to, domain=None, range=Optional[Union[Union[str, LinkId], list[Union[str, LinkId]]]])
+                   model_uri=TG.links_to, domain=None, range=Optional[Union[Union[str, LinkedDocumentId], list[Union[str, LinkedDocumentId]]]])
 
-slots.community = Slot(uri=TG.community, name="community", curie=TG.curie('community'),
-                   model_uri=TG.community, domain=None, range=Optional[Union[dict, Community]])
+slots.attachment = Slot(uri=SIOC.attachment, name="attachment", curie=SIOC.curie('attachment'),
+                   model_uri=TG.attachment, domain=None, range=Optional[Union[Union[str, AttachmentId], list[Union[str, AttachmentId]]]])
 
-slots.users = Slot(uri=TG.users, name="users", curie=TG.curie('users'),
-                   model_uri=TG.users, domain=None, range=Optional[Union[dict[Union[str, UserAccountId], Union[dict, UserAccount]], list[Union[dict, UserAccount]]]])
+slots.has_poll = Slot(uri=TG.has_poll, name="has_poll", curie=TG.curie('has_poll'),
+                   model_uri=TG.has_poll, domain=None, range=Optional[Union[str, PollId]])
 
-slots.links = Slot(uri=TG.links, name="links", curie=TG.curie('links'),
-                   model_uri=TG.links, domain=None, range=Optional[Union[list[Union[str, LinkId]], dict[Union[str, LinkId], Union[dict, Link]]]])
-
-slots.posts = Slot(uri=TG.posts, name="posts", curie=TG.curie('posts'),
-                   model_uri=TG.posts, domain=None, range=Optional[Union[dict[Union[str, PostId], Union[dict, Post]], list[Union[dict, Post]]]])
-
-slots.threads = Slot(uri=TG.threads, name="threads", curie=TG.curie('threads'),
-                   model_uri=TG.threads, domain=None, range=Optional[Union[dict[Union[str, ThreadId], Union[dict, Thread]], list[Union[dict, Thread]]]])
+slots.topics = Slot(uri=SIOC.topic, name="topics", curie=SIOC.curie('topic'),
+                   model_uri=TG.topics, domain=None, range=Optional[Union[Union[str, ConceptId], list[Union[str, ConceptId]]]])
 
 slots.forwards = Slot(uri=TG.forwards, name="forwards", curie=TG.curie('forwards'),
                    model_uri=TG.forwards, domain=None, range=Optional[int])
@@ -469,36 +785,96 @@ slots.forwards = Slot(uri=TG.forwards, name="forwards", curie=TG.curie('forwards
 slots.pinned = Slot(uri=TG.pinned, name="pinned", curie=TG.curie('pinned'),
                    model_uri=TG.pinned, domain=None, range=Optional[Union[bool, Bool]])
 
-slots.topics = Slot(uri=SIOC.topic, name="topics", curie=SIOC.curie('topic'),
-                   model_uri=TG.topics, domain=None, range=Optional[Union[str, list[str]]])
+slots.closed = Slot(uri=TG.closed, name="closed", curie=TG.curie('closed'),
+                   model_uri=TG.closed, domain=None, range=Optional[Union[bool, Bool]])
 
-slots.mentions = Slot(uri=TG.mentions, name="mentions", curie=TG.curie('mentions'),
-                   model_uri=TG.mentions, domain=None, range=Optional[Union[str, list[str]]])
+slots.is_bot = Slot(uri=TG.is_bot, name="is_bot", curie=TG.curie('is_bot'),
+                   model_uri=TG.is_bot, domain=None, range=Optional[Union[bool, Bool]])
 
-slots.entity_links = Slot(uri=SIOC.links_to, name="entity_links", curie=SIOC.curie('links_to'),
-                   model_uri=TG.entity_links, domain=None, range=Optional[Union[Union[str, LinkId], list[Union[str, LinkId]]]])
+slots.avatar = Slot(uri=TG.avatar, name="avatar", curie=TG.curie('avatar'),
+                   model_uri=TG.avatar, domain=None, range=Optional[str])
 
-slots.num_views = Slot(uri=SIOC.num_views, name="num_views", curie=SIOC.curie('num_views'),
-                   model_uri=TG.num_views, domain=None, range=Optional[int])
+slots.quote_text = Slot(uri=TG.quote_text, name="quote_text", curie=TG.curie('quote_text'),
+                   model_uri=TG.quote_text, domain=None, range=Optional[str])
 
-slots.num_replies = Slot(uri=SIOC.num_replies, name="num_replies", curie=SIOC.curie('num_replies'),
-                   model_uri=TG.num_replies, domain=None, range=Optional[int])
+slots.grouped_id = Slot(uri=TG.grouped_id, name="grouped_id", curie=TG.curie('grouped_id'),
+                   model_uri=TG.grouped_id, domain=None, range=Optional[str])
 
-slots.reaction_count = Slot(uri=TG.reaction_count, name="reaction_count", curie=TG.curie('reaction_count'),
-                   model_uri=TG.reaction_count, domain=None, range=Optional[int])
+slots.format = Slot(uri=DCTERMS.format, name="format", curie=DCTERMS.curie('format'),
+                   model_uri=TG.format, domain=None, range=Optional[str])
 
-slots.reactions = Slot(uri=TG.reactions, name="reactions", curie=TG.curie('reactions'),
-                   model_uri=TG.reactions, domain=None, range=Optional[Union[str, list[str]]])
+slots.extent = Slot(uri=DCTERMS.extent, name="extent", curie=DCTERMS.curie('extent'),
+                   model_uri=TG.extent, domain=None, range=Optional[int])
 
 slots.media_type = Slot(uri=TG.media_type, name="media_type", curie=TG.curie('media_type'),
                    model_uri=TG.media_type, domain=None, range=Optional[Union[str, "MediaType"]])
 
-slots.forwarded_from = Slot(uri=TG.forwarded_from, name="forwarded_from", curie=TG.curie('forwarded_from'),
-                   model_uri=TG.forwarded_from, domain=None, range=Optional[str])
+slots.duration = Slot(uri=TG.duration, name="duration", curie=TG.curie('duration'),
+                   model_uri=TG.duration, domain=None, range=Optional[int])
 
-slots.is_service = Slot(uri=TG.is_service, name="is_service", curie=TG.curie('is_service'),
-                   model_uri=TG.is_service, domain=None, range=Optional[Union[bool, Bool]])
+slots.doc_creator = Slot(uri=DCTERMS.creator, name="doc_creator", curie=DCTERMS.curie('creator'),
+                   model_uri=TG.doc_creator, domain=None, range=Optional[str])
 
-slots.service_action = Slot(uri=TG.service_action, name="service_action", curie=TG.curie('service_action'),
-                   model_uri=TG.service_action, domain=None, range=Optional[Union[str, "ServiceActionType"]])
+slots.site_name = Slot(uri=TG.site_name, name="site_name", curie=TG.curie('site_name'),
+                   model_uri=TG.site_name, domain=None, range=Optional[str])
+
+slots.answers = Slot(uri=TG.answers, name="answers", curie=TG.curie('answers'),
+                   model_uri=TG.answers, domain=None, range=Optional[Union[str, list[str]]])
+
+slots.total_voters = Slot(uri=TG.total_voters, name="total_voters", curie=TG.curie('total_voters'),
+                   model_uri=TG.total_voters, domain=None, range=Optional[int])
+
+slots.quiz = Slot(uri=TG.quiz, name="quiz", curie=TG.curie('quiz'),
+                   model_uri=TG.quiz, domain=None, range=Optional[Union[bool, Bool]])
+
+slots.poll_closed = Slot(uri=TG.poll_closed, name="poll_closed", curie=TG.curie('poll_closed'),
+                   model_uri=TG.poll_closed, domain=None, range=Optional[Union[bool, Bool]])
+
+slots.public_voters = Slot(uri=TG.public_voters, name="public_voters", curie=TG.curie('public_voters'),
+                   model_uri=TG.public_voters, domain=None, range=Optional[Union[bool, Bool]])
+
+slots.multiple_choice = Slot(uri=TG.multiple_choice, name="multiple_choice", curie=TG.curie('multiple_choice'),
+                   model_uri=TG.multiple_choice, domain=None, range=Optional[Union[bool, Bool]])
+
+slots.reactor = Slot(uri=TG.reactor, name="reactor", curie=TG.curie('reactor'),
+                   model_uri=TG.reactor, domain=None, range=Optional[Union[str, UserId]])
+
+slots.emoji = Slot(uri=TG.emoji, name="emoji", curie=TG.curie('emoji'),
+                   model_uri=TG.emoji, domain=None, range=Optional[str])
+
+slots.target = Slot(uri=TG.target, name="target", curie=TG.curie('target'),
+                   model_uri=TG.target, domain=None, range=Optional[Union[str, PostId]])
+
+slots.community = Slot(uri=TG.community, name="community", curie=TG.curie('community'),
+                   model_uri=TG.community, domain=None, range=Optional[Union[dict, Community]])
+
+slots.site = Slot(uri=TG.site, name="site", curie=TG.curie('site'),
+                   model_uri=TG.site, domain=None, range=Optional[Union[dict, Site]])
+
+slots.forums = Slot(uri=TG.forums, name="forums", curie=TG.curie('forums'),
+                   model_uri=TG.forums, domain=None, range=Optional[Union[dict[Union[str, ForumId], Union[dict, Forum]], list[Union[dict, Forum]]]])
+
+slots.users = Slot(uri=TG.users, name="users", curie=TG.curie('users'),
+                   model_uri=TG.users, domain=None, range=Optional[Union[dict[Union[str, UserId], Union[dict, User]], list[Union[dict, User]]]])
+
+slots.persons = Slot(uri=TG.persons, name="persons", curie=TG.curie('persons'),
+                   model_uri=TG.persons, domain=None, range=Optional[Union[dict[Union[str, PersonId], Union[dict, Person]], list[Union[dict, Person]]]])
+
+slots.posts = Slot(uri=TG.posts, name="posts", curie=TG.curie('posts'),
+                   model_uri=TG.posts, domain=None, range=Optional[Union[dict[Union[str, PostId], Union[dict, Post]], list[Union[dict, Post]]]])
+
+slots.threads = Slot(uri=TG.threads, name="threads", curie=TG.curie('threads'),
+                   model_uri=TG.threads, domain=None, range=Optional[Union[dict[Union[str, ThreadId], Union[dict, Thread]], list[Union[dict, Thread]]]])
+
+slots.concepts = Slot(uri=TG.concepts, name="concepts", curie=TG.curie('concepts'),
+                   model_uri=TG.concepts, domain=None, range=Optional[Union[dict[Union[str, ConceptId], Union[dict, Concept]], list[Union[dict, Concept]]]])
+
+slots.attachments = Slot(uri=TG.attachments, name="attachments", curie=TG.curie('attachments'),
+                   model_uri=TG.attachments, domain=None, range=Optional[Union[dict[Union[str, AttachmentId], Union[dict, Attachment]], list[Union[dict, Attachment]]]])
+
+slots.linked_documents = Slot(uri=TG.linked_documents, name="linked_documents", curie=TG.curie('linked_documents'),
+                   model_uri=TG.linked_documents, domain=None, range=Optional[Union[dict[Union[str, LinkedDocumentId], Union[dict, LinkedDocument]], list[Union[dict, LinkedDocument]]]])
+
+slots.polls = Slot(uri=TG.polls, name="polls", curie=TG.curie('polls'),
+                   model_uri=TG.polls, domain=None, range=Optional[Union[dict[Union[str, PollId], Union[dict, Poll]], list[Union[dict, Poll]]]])
 

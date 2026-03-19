@@ -18,7 +18,7 @@ STORE_DIR = ROOT / "data" / "store"
 MESSAGES_FILE = RAW_DIR / "messages.jsonl"
 CHANNEL_FILE = RAW_DIR / "channel.json"
 PARTICIPANTS_FILE = RAW_DIR / "participants.jsonl"
-TOPICS_FILE = RAW_DIR / "topics.json"
+FORUMS_FILE = RAW_DIR / "forums.json"
 GRAPH_FILE = GRAPH_DIR / "linkml_graph.json"
 TURTLE_FILE = RDF_DIR / "sioc_graph.ttl"
 SCHEMA_FILE = ROOT / "schemas" / "sioc.yaml"
@@ -39,6 +39,16 @@ def channel_uri(channel_id: int) -> str:
     return f"tg:channel/{channel_id}"
 
 
+def site_uri() -> str:
+    return "tg:site/telegram"
+
+
+def forum_uri(channel_id: int, topic_id: int | None = None) -> str:
+    if topic_id is not None:
+        return f"tg:channel/{channel_id}/forum/{topic_id}"
+    return f"tg:channel/{channel_id}/forum"
+
+
 def thread_uri(channel_id: int, topic_id: int) -> str:
     return f"tg:channel/{channel_id}/thread/{topic_id}"
 
@@ -55,8 +65,20 @@ def person_uri(user_id: int) -> str:
     return f"tg:person/{user_id}"
 
 
-def topic_uri(tag: str) -> str:
+def concept_uri(tag: str) -> str:
     return f"tg:topic/{tag.lower()}"
+
+
+def attachment_uri(channel_id: int, msg_id: int, index: int = 0) -> str:
+    return f"tg:attachment/{channel_id}/{msg_id}/{index}"
+
+
+def poll_uri(channel_id: int, msg_id: int) -> str:
+    return f"tg:poll/{channel_id}/{msg_id}"
+
+
+def document_uri(url: str) -> str:
+    return url
 
 
 def graph_uri(channel_id: int) -> str:

@@ -62,179 +62,165 @@ Detailed decisions and rationale: `elucidate-data-model-migration.md`.
 ## Phase 4: Schema + Config
 
 ### 4.1 Rewrite `schemas/sioc.yaml`
-- [ ] Add new prefixes: `sioc_types`, `skos`, `dc`, `content`
-- [ ] Change `id` slot: `dcterms:identifier` → `sioc:id`
-- [ ] **Community**: remove `member_count`, add `has_part` (→ Site)
-- [ ] **Site** (NEW): `sioc:Site` — id, name, host_of (→ Forum, multivalued)
-- [ ] **Forum** (NEW): `sioc:Forum` — id, name, description, has_host (→ Site), has_parent (→ Forum), parent_of (→ Forum, multivalued), container_of (→ Post/Thread refs, multivalued), tg:closed (bool)
-- [ ] **Thread**: change `has_parent` range from Community → Forum
-- [ ] **User** (rename UserAccount): `sioc:User` — id, sioc:name, username, is_bot, account_of (→ Person), avatar, description
-- [ ] **Person** (NEW): `foaf:Person` — id, foaf:name, holds_account (→ User, multivalued)
-- [ ] **Post**: major slot overhaul
-  - Remove: mentions, entity_links, num_views, num_replies, reaction_count, reactions (string list), media_type, forwarded_from, is_service, service_action
-  - Change: has_container → Forum, topics → Concept, links_to → LinkedDocument
-  - Add: has_reply (→ Post), sibling (→ Post), attachment (→ Attachment, multivalued), has_poll (→ Poll), via_bot (→ User), quote_text, grouped_id
-  - Keep: id, content, created, modified, has_creator (→ User), reply_of (→ Post), forwards, pinned
-- [ ] **Poll** (NEW): `sioc_types:Poll` — id, question, answers (structured), vote_count, quiz, closed, public_voters, multiple_choice, has_creator (→ User)
-- [ ] **Attachment** (NEW): `foaf:Document` — id, dcterms:format, dcterms:extent, tg:media_type, tg:duration
-- [ ] **LinkedDocument** (NEW): `foaf:Document` — id, dc:title, dcterms:description, dcterms:creator, tg:site_name
-- [ ] **Concept** (NEW): `skos:Concept` — id, skos:prefLabel
-- [ ] **Reaction** (NEW, schema-only for now): `tg:Reaction` — id, reactor (→ User), emoji, target (→ Post)
-- [ ] Remove old Link class, ServiceActionType enum
-- [ ] Update MediaType enum (for Attachment context)
-- [ ] Update GraphDocument: add site, forums, persons, concepts, attachments, linked_documents, polls; remove links
+- [x] Add new prefixes: `sioc_types`, `skos`, `dc`
+- [x] Change `id` slot: `dcterms:identifier` → `sioc:id`
+- [x] **Community**: remove `member_count`, add `has_part` (→ Site)
+- [x] **Site** (NEW): `sioc:Site` — id, name, host_of (→ Forum, multivalued)
+- [x] **Forum** (NEW): `sioc:Forum` — id, name, description, has_host (→ Site), has_parent (→ Forum), parent_of (→ Forum, multivalued), container_of (→ Post refs, multivalued), tg:closed (bool)
+- [x] **Thread**: change `has_parent` range from Community → Forum
+- [x] **User** (rename UserAccount): `sioc:User` — id, sioc:name, username, is_bot, account_of (→ Person), avatar, description
+- [x] **Person** (NEW): `foaf:Person` — id, foaf:name, holds_account (→ User, multivalued)
+- [x] **Post**: major slot overhaul
+- [x] **Poll** (NEW): `sioc_types:Poll`
+- [x] **Attachment** (NEW): `foaf:Document` — id, dcterms:format, dcterms:extent, tg:media_type, tg:duration
+- [x] **LinkedDocument** (NEW): `foaf:Document` — id, dc:title, dcterms:description, dcterms:creator, tg:site_name
+- [x] **Concept** (NEW): `skos:Concept` — id, skos:prefLabel
+- [x] **Reaction** (NEW, schema-only for now): `tg:Reaction` — id, reactor (→ User), emoji, target (→ Post)
+- [x] Remove old Link class, ServiceActionType enum
+- [x] Update MediaType enum (for Attachment context)
+- [x] Update GraphDocument: add site, forums, persons, concepts, attachments, linked_documents, polls; remove links
 
 ### 4.2 Regenerate `models.py`
-- [ ] Run `just gen-model`
-- [ ] Verify generated classes match schema
+- [x] Run `just gen-model`
+- [x] Verify generated classes match schema
 
 ### 4.3 Update `config.py`
-- [ ] Add URI helpers: `site_uri()`, `forum_uri()`, `person_uri()`, `poll_uri()`, `concept_uri()`, `attachment_uri()`, `document_uri()`
-- [ ] Add `FORUMS_FILE` path constant
-- [ ] Update/verify existing URI helpers
+- [x] Add URI helpers: `site_uri()`, `forum_uri()`, `person_uri()`, `poll_uri()`, `concept_uri()`, `attachment_uri()`, `document_uri()`
+- [x] Add `FORUMS_FILE` path constant
+- [x] Update/verify existing URI helpers
 
 ### 4.4 Validate
-- [ ] `just validate` — schema is valid LinkML
-- [ ] `just gen-model` — models generate cleanly
-- [ ] Review: generated classes match data model doc
+- [x] `just validate` — schema is valid LinkML
+- [x] `just gen-model` — models generate cleanly
+- [x] Review: generated classes match data model doc
 
 ---
 
 ## Phase 5: Extract
 
 ### 5.1 Forum structure extraction
-- [ ] New function: `fetch_forums()` — supergroup metadata + all topic channels
-  - Topic ID, title, open/closed status, creation date
-  - Supergroup vs topic channel distinction
-- [ ] Output: `data/raw/forums.json`
-- [ ] Wire into CLI pipeline
+- [x] New function: `fetch_forums()` — topic ID, title, open/closed, creation date
+- [x] Output: `data/raw/forums.json`
+- [x] Wire into CLI pipeline
 
 ### 5.2 Verify existing message data
-- [ ] Confirm poll data in messages.jsonl (when polls exist)
-- [ ] Confirm media metadata (mime_type, size, duration) in raw JSON
-- [ ] Confirm webpage preview data (title, description, site_name, author) in raw JSON
-- [ ] Confirm reaction data (aggregate) in raw JSON
-- [ ] Confirm fwd_from has channel_id + channel_post for sibling refs
-- [ ] Confirm reply_to has quote_text when present
+- [x] Confirm media metadata (mime_type, size) in raw JSON
+- [x] Confirm webpage preview data (title, description, site_name, author) in raw JSON
+- [x] Confirm reaction data (aggregate) in raw JSON
+- [x] Confirm fwd_from has channel_id + channel_post for sibling refs
+- [x] No polls found in current data (0 poll messages)
+- [x] No quote_text found in current data
+- [x] No via_bot_id found in current data
+- [x] No grouped_id found in current data
 
 ### 5.3 Enhance participant extraction
-- [ ] Check for avatar, bio/description in participant data
-- [ ] Add UserFull fetch if needed (rate-limit sensitive)
+- [ ] Check for avatar, bio/description in participant data (deferred — rate-limit sensitive)
 
 ### 5.4 Test
-- [ ] Run `just extract` end-to-end
-- [ ] Inspect forums.json output
-- [ ] Spot-check messages.jsonl for poll/media/webpage data
+- [x] Verified forums.json generated from existing topics data
+- [x] Spot-checked messages.jsonl for media/webpage/reaction/fwd_from data
 
 ---
 
 ## Phase 6: Transform (biggest phase)
 
 ### 6.1 Restructure `transform/__init__.py`
-- [ ] New dedup registries: forums, persons, concepts, attachments, linked_documents, polls
-- [ ] Load forum data from `forums.json`
-- [ ] Update GraphDocument construction with all new collections
+- [x] New dedup registries: forums, persons, concepts, attachments, linked_documents, polls
+- [x] Load forum data from `forums.json`
+- [x] Update GraphDocument construction with all new collections
+- [x] Build has_reply index (second pass over posts)
 
 ### 6.2 Rewrite `transform/channel.py` → Community + Site + Forum hierarchy
-- [ ] Community (simplified — no member_count)
-- [ ] Site ("Telegram") with URI, name
-- [ ] Forum per supergroup (organizational, plain Forum)
-- [ ] Forum per topic channel (ChatChannel type, child of supergroup)
-- [ ] Wire: Community hasPart→Site, Site host_of→Forums, Forum parent_of→child Forums
+- [x] Community (simplified — no member_count)
+- [x] Site ("Telegram") with URI, name
+- [x] Forum per supergroup (organizational, plain Forum)
+- [x] Forum per topic channel (child of supergroup)
+- [x] Wire: Community hasPart→Site, Site host_of→Forums, Forum parent_of→child Forums
 
 ### 6.3 Rewrite `transform/users.py` → User + Person
-- [ ] Rename UserAccount → User
-- [ ] Create Person per User (1:1)
-- [ ] Wire: Person holds_account→User, User account_of→Person
-- [ ] New properties: avatar, description (if available from participants)
-- [ ] `sioc:name` for User display name, `foaf:name` for Person name
+- [x] Rename UserAccount → User
+- [x] Create Person per User (1:1)
+- [x] Wire: Person holds_account→User, User account_of→Person
+- [x] `sioc:name` for User display name, `foaf:name` for Person name
 
 ### 6.4 Rewrite `transform/messages.py` → Post + related entities
-- [ ] Update Post with new slot names and ranges
-- [ ] `has_container` → forum_uri (topic channel)
-- [ ] `reply_of` + `has_reply` — both directions
-- [ ] `sibling` — from fwd_from (channel_id + message_id → minted URI)
-- [ ] `attachment` — create Attachment entities for media
-  - Extract: mime_type, file_size, duration, media_type
-  - URI: `tg:attachment/{message_id}/{index}`
-- [ ] `links_to` — create LinkedDocument entities from webpage previews
-  - Extract: url, title, description, author, site_name
-  - URI: the URL itself
-- [ ] `has_poll` — create Poll entities from MessageMediaPoll
-  - Extract: question, answers, vote counts, quiz, closed
-  - URI: `tg:poll/{message_id}`
-- [ ] `topics` → create Concept entities, register in concepts registry
-- [ ] `quote_text` — from reply_to
-- [ ] `grouped_id` — from message
-- [ ] `via_bot` — from via_bot_id, register bot User
-- [ ] Remove: mentions, entity_links, num_views, num_replies, reaction_count, reactions (strings), media_type (on Post), forwarded_from, is_service, service_action
+- [x] Update Post with new slot names and ranges
+- [x] `has_container` → forum_uri (topic channel)
+- [x] `reply_of` + `has_reply` — both directions
+- [x] `sibling` — from fwd_from (channel_id + message_id → minted URI)
+- [x] `attachment` — create Attachment entities for media
+- [x] `links_to` — create LinkedDocument entities from webpage previews
+- [x] `has_poll` — create Poll entities from MessageMediaPoll (no polls in current data)
+- [x] `topics` → create Concept entities, register in concepts registry
+- [x] `quote_text` — from reply_to (no quote_text in current data)
+- [x] `grouped_id` — from message (no grouped_id in current data)
+- [x] `via_bot` — from via_bot_id (no via_bot in current data)
+- [x] Remove: mentions, entity_links, num_views, num_replies, reaction_count, reactions (strings), media_type (on Post), forwarded_from, is_service, service_action
+- [x] Skip service messages (no longer mapped)
 
 ### 6.5 Update `transform/entities.py`
-- [ ] Topic extraction → return Concept objects (not URI strings)
-- [ ] URL extraction → return LinkedDocument objects with metadata
-- [ ] Remove mention extraction from Post pipeline
-- [ ] Remove entity_links handling
+- [x] Topic extraction → return Concept objects (not URI strings)
+- [x] URL extraction → return LinkedDocument objects with metadata
+- [x] Remove mention extraction from Post pipeline
+- [x] Remove entity_links handling
 
 ### 6.6 Thread handling
-- [ ] Thread.has_parent → forum_uri instead of channel_uri
+- [x] Thread.has_parent_forum → forum_uri instead of channel_uri
 
 ### 6.7 Test
-- [ ] `just transform` runs cleanly
-- [ ] Inspect linkml_graph.json — all new entity types present
-- [ ] Spot-check: Forum hierarchy, Person↔User links, Document metadata
+- [x] `just transform` runs cleanly — 332 posts, 21 users, 29 forums, 27 attachments, 136 linked docs
+- [x] Inspect linkml_graph.json — all new entity types present
+- [x] Spot-check: Forum hierarchy, Person↔User links, Document metadata
 
 ---
 
 ## Phase 7: Serialize
 
 ### 7.1 Update `serialize.py`
-- [ ] Update `deep_clean_ids` for new entity structure if needed
-- [ ] Verify LinkML json_loader handles all new classes
-- [ ] Verify rdflib_dumper produces correct Turtle
+- [x] No changes needed — `deep_clean_ids` is generic
+- [x] Verify LinkML json_loader handles all new classes
+- [x] Verify rdflib_dumper produces correct Turtle (5160 lines)
 
 ### 7.2 Inspect RDF output
-- [ ] Correct class URIs (sioc:User, sioc:Forum, foaf:Person, etc.)
-- [ ] Correct property URIs (sioc:id, sioc:attachment, sioc:links_to, etc.)
-- [ ] New prefix declarations in Turtle header
-- [ ] Relationship triples (site host_of forum, forum container_of post, etc.)
+- [x] Correct class URIs (sioc:User, sioc:Forum, foaf:Person, foaf:Document, skos:Concept)
+- [x] Correct property URIs (sioc:id, sioc:attachment, sioc:links_to, sioc:host_of, etc.)
+- [x] New prefix declarations: dc:, skos:, sioc_types: (via schema)
+- [x] Relationship triples: site host_of forums, hasPart, holdsAccount, sibling, has_reply
 
 ---
 
 ## Phase 8: Load + Query
 
 ### 8.1 Load
-- [ ] `just load` works (just POSTs Turtle, should be unchanged)
+- [ ] `just load` works (requires Docker Oxigraph — untested offline)
 - [ ] Triple count is reasonable
 
 ### 8.2 Rewrite `query.py`
-- [ ] Update namespace prefixes
-- [ ] Rewrite community_overview (Community → Site → Forum structure)
-- [ ] Rewrite most_active_contributors (sioc:User)
-- [ ] Rewrite recent_conversations (has_container → Forum)
-- [ ] Rewrite reply_network
-- [ ] Rewrite busiest_threads (Thread.has_parent → Forum)
-- [ ] Rewrite most_shared_links (sioc:links_to → foaf:Document)
-- [ ] Remove/replace most_mentioned
-- [ ] Rewrite most_reacted_posts
-- [ ] Rewrite forum_threads (real Forum entities now)
-- [ ] Rewrite media_breakdown (media_type on Attachment, not Post)
-- [ ] Keep most_edited_posts (dcterms:modified still works)
-- [ ] New: Forum hierarchy overview
-- [ ] New: Topic (skos:Concept) distribution
-- [ ] New: Attachment/media summary
-- [ ] New: Poll results (if data exists)
+- [x] Update namespace prefixes (PREFIXES block with all 8 prefixes)
+- [x] Rewrite community_overview (counts forums + linked docs)
+- [x] Rewrite most_active_contributors (sioc:User, sioc:name)
+- [x] Rewrite recent_conversations (has_container → Forum with name)
+- [x] Rewrite reply_network (sioc:name instead of foaf:name)
+- [x] Rewrite busiest_threads
+- [x] Rewrite most_shared_links (sioc:links_to → foaf:Document with dc:title)
+- [x] Remove most_mentioned (no longer in schema)
+- [x] Remove most_reacted_posts (reactions not yet populated as entities)
+- [x] Rewrite media_breakdown (media_type on Attachment)
+- [x] Keep most_edited_posts (dcterms:modified)
+- [x] New: Forum hierarchy overview (forum_hierarchy section)
+- [x] New: Topic (skos:Concept) distribution (topic_distribution section)
+- [x] New: Forwarded content / siblings (forwarded_content section)
 
 ### 8.3 End-to-end test
-- [ ] `just run-all` — full pipeline
-- [ ] `just demo` — Rich dashboard
-- [ ] `just query` — SPARQL against Oxigraph
+- [x] `just demo` — Rich dashboard, all 11 sections render correctly
+- [ ] `just load` + `just query` — requires Docker Oxigraph
 
 ---
 
 ## Phase 9: Documentation + Cleanup
 
-- [ ] Update `CLAUDE.md` schema section
+- [x] Update `CLAUDE.md` schema section (13 classes, new prefixes)
 - [ ] Update `docs/data-model.md` if implementation deviations
 - [ ] Update `README.md`
-- [ ] Clean up dead code / unused imports
-- [ ] Update memory file with new schema state
+- [x] Clean up dead code / unused imports
+- [x] Update memory file with new schema state

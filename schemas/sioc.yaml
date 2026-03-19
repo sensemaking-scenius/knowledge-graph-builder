@@ -1,12 +1,14 @@
-id: https://example.org/knowledge-graph-builder/sioc-min
-name: sioc_min
-description: Minimal SIOC-aligned schema for Telegram-derived social data
+id: https://example.org/knowledge-graph-builder/sioc
+name: sioc
+description: SIOC-aligned schema for Telegram-derived social knowledge graphs
 
 prefixes:
   sioc: http://rdfs.org/sioc/ns#
+  sioc_types: http://rdfs.org/sioc/types#
   dcterms: http://purl.org/dc/terms/
-  schema: http://schema.org/
+  dc: http://purl.org/dc/elements/1.1/
   foaf: http://xmlns.com/foaf/0.1/
+  skos: http://www.w3.org/2004/02/skos/core#
   rdfs: http://www.w3.org/2000/01/rdf-schema#
   tg: https://example.org/telegram/
   linkml: https://w3id.org/linkml/
@@ -18,46 +20,79 @@ imports:
   - linkml:types
 
 classes:
+
+  # ── Root container ──────────────────────────────────────────────────
   GraphDocument:
     tree_root: true
     slots:
       - id
       - community
+      - site
+      - forums
       - users
-      - links
+      - persons
       - posts
       - threads
+      - concepts
+      - attachments
+      - linked_documents
+      - polls
 
+  # ── Space / Container hierarchy ─────────────────────────────────────
   Community:
     class_uri: sioc:Community
     slots:
       - id
       - name
       - description
-      - member_count
+      - has_part
+
+  Site:
+    class_uri: sioc:Site
+    slots:
+      - id
+      - name
+      - host_of
+
+  Forum:
+    class_uri: sioc:Forum
+    slots:
+      - id
+      - name
+      - description
+      - has_host
+      - has_parent_forum
+      - parent_of
+      - container_of
+      - closed
 
   Thread:
     class_uri: sioc:Thread
     slots:
       - id
       - name
-      - has_parent
+      - has_parent_forum
 
-  UserAccount:
-    class_uri: sioc:UserAccount
+  # ── Agents ──────────────────────────────────────────────────────────
+  User:
+    class_uri: sioc:User
+    slots:
+      - id
+      - sioc_name
+      - username
+      - is_bot
+      - account_of
+      - avatar
+      - user_description
+
+  Person:
+    class_uri: foaf:Person
     slots:
       - id
       - name
-      - username
-      - is_bot
-      - is_verified
-      - is_premium
+      - holds_account
 
-  Link:
-    class_uri: schema:URL
-    slots:
-      - id
-
+  # ── Content ─────────────────────────────────────────────────────────
   Post:
     class_uri: sioc:Post
     slots:
@@ -67,22 +102,69 @@ classes:
       - modified
       - has_creator
       - has_container
-      - has_thread
-      - reply_to
+      - reply_of
+      - has_reply
+      - sibling
       - links_to
+      - attachment
+      - has_poll
+      - topics
       - forwards
       - pinned
-      - topics
-      - mentions
-      - entity_links
-      - num_views
-      - num_replies
-      - reaction_count
-      - reactions
+      - quote_text
+      - grouped_id
+      - via_bot
+
+  Poll:
+    class_uri: sioc_types:Poll
+    slots:
+      - id
+      - question
+      - answers
+      - total_voters
+      - quiz
+      - poll_closed
+      - public_voters
+      - multiple_choice
+
+  # ── Documents ───────────────────────────────────────────────────────
+  Attachment:
+    class_uri: foaf:Document
+    slots:
+      - id
+      - format
+      - extent
       - media_type
-      - forwarded_from
-      - is_service
-      - service_action
+      - duration
+
+  LinkedDocument:
+    class_uri: foaf:Document
+    slots:
+      - id
+      - title
+      - doc_description
+      - doc_creator
+      - site_name
+
+  # ── Knowledge ───────────────────────────────────────────────────────
+  Concept:
+    class_uri: skos:Concept
+    slots:
+      - id
+      - pref_label
+
+  # ── Reaction (schema-only, not populated in v1) ─────────────────────
+  Reaction:
+    class_uri: tg:Reaction
+    slots:
+      - id
+      - reactor
+      - emoji
+      - target
+
+# ═══════════════════════════════════════════════════════════════════════
+# Enums
+# ═══════════════════════════════════════════════════════════════════════
 
 enums:
   MediaType:
@@ -90,54 +172,104 @@ enums:
       photo:
       video:
       document:
-      webpage:
       audio:
+      voice:
       sticker:
+      animation:
       other:
 
-  ServiceActionType:
-    permissible_values:
-      join:
-      leave:
-      pin:
-      title_change:
-      photo_change:
-      other:
+# ═══════════════════════════════════════════════════════════════════════
+# Slots
+# ═══════════════════════════════════════════════════════════════════════
 
 slots:
+
+  # ── Identifiers ─────────────────────────────────────────────────────
   id:
     identifier: true
-    slot_uri: dcterms:identifier
+    slot_uri: sioc:id
 
+  # ── Names / labels ──────────────────────────────────────────────────
   name:
     slot_uri: foaf:name
 
-  description:
-    slot_uri: dcterms:description
+  sioc_name:
+    slot_uri: sioc:name
 
   username:
     slot_uri: foaf:accountName
 
-  member_count:
-    range: integer
-    slot_uri: tg:member_count
+  pref_label:
+    slot_uri: skos:prefLabel
 
-  is_bot:
-    range: boolean
-    slot_uri: tg:is_bot
+  title:
+    slot_uri: dc:title
 
-  is_verified:
-    range: boolean
-    slot_uri: tg:is_verified
+  question:
+    slot_uri: tg:question
 
-  is_premium:
-    range: boolean
-    slot_uri: tg:is_premium
+  # ── Descriptions ────────────────────────────────────────────────────
+  description:
+    slot_uri: dcterms:description
 
-  has_parent:
-    range: Community
+  doc_description:
+    slot_uri: dcterms:description
+
+  user_description:
+    slot_uri: dcterms:description
+
+  # ── Hierarchy / containment ─────────────────────────────────────────
+  has_part:
+    range: Site
+    slot_uri: dcterms:hasPart
+
+  has_host:
+    range: Site
+    slot_uri: sioc:has_host
+
+  has_parent_forum:
+    range: Forum
     slot_uri: sioc:has_parent
 
+  parent_of:
+    range: Forum
+    multivalued: true
+    slot_uri: sioc:parent_of
+
+  host_of:
+    range: Forum
+    multivalued: true
+    slot_uri: sioc:host_of
+
+  container_of:
+    range: Post
+    multivalued: true
+    slot_uri: sioc:container_of
+    inlined: false
+
+  has_container:
+    range: Forum
+    slot_uri: sioc:has_container
+
+  # ── Agent links ─────────────────────────────────────────────────────
+  account_of:
+    range: Person
+    slot_uri: sioc:account_of
+
+  holds_account:
+    range: User
+    multivalued: true
+    slot_uri: foaf:holdsAccount
+
+  has_creator:
+    range: User
+    slot_uri: sioc:has_creator
+
+  via_bot:
+    range: User
+    slot_uri: tg:via_bot
+
+  # ── Content properties ──────────────────────────────────────────────
   content:
     slot_uri: sioc:content
 
@@ -149,38 +281,148 @@ slots:
     range: datetime
     slot_uri: dcterms:modified
 
-  has_creator:
-    range: UserAccount
-    slot_uri: sioc:has_creator
-
-  has_container:
-    range: Community
-    slot_uri: sioc:has_container
-
-  has_thread:
-    range: Thread
-    slot_uri: tg:has_thread
-
-  reply_to:
+  # ── Reply / forward ─────────────────────────────────────────────────
+  reply_of:
     range: Post
     slot_uri: sioc:reply_of
 
+  has_reply:
+    range: Post
+    multivalued: true
+    slot_uri: sioc:has_reply
+    inlined: false
+
+  sibling:
+    range: Post
+    slot_uri: sioc:sibling
+
+  # ── Attachments / links ─────────────────────────────────────────────
   links_to:
     multivalued: true
-    range: Link
+    range: LinkedDocument
     slot_uri: sioc:links_to
 
+  attachment:
+    multivalued: true
+    range: Attachment
+    slot_uri: sioc:attachment
+
+  has_poll:
+    range: Poll
+    slot_uri: tg:has_poll
+
+  # ── Topics ──────────────────────────────────────────────────────────
+  topics:
+    multivalued: true
+    range: Concept
+    slot_uri: sioc:topic
+
+  # ── Telegram-specific ───────────────────────────────────────────────
+  forwards:
+    range: integer
+    slot_uri: tg:forwards
+
+  pinned:
+    range: boolean
+    slot_uri: tg:pinned
+
+  closed:
+    range: boolean
+    slot_uri: tg:closed
+
+  is_bot:
+    range: boolean
+    slot_uri: tg:is_bot
+
+  avatar:
+    slot_uri: tg:avatar
+
+  quote_text:
+    slot_uri: tg:quote_text
+
+  grouped_id:
+    slot_uri: tg:grouped_id
+
+  # ── Document properties ─────────────────────────────────────────────
+  format:
+    slot_uri: dcterms:format
+
+  extent:
+    range: integer
+    slot_uri: dcterms:extent
+
+  media_type:
+    range: MediaType
+    slot_uri: tg:media_type
+
+  duration:
+    range: integer
+    slot_uri: tg:duration
+
+  doc_creator:
+    slot_uri: dcterms:creator
+
+  site_name:
+    slot_uri: tg:site_name
+
+  # ── Poll properties ─────────────────────────────────────────────────
+  answers:
+    multivalued: true
+    slot_uri: tg:answers
+
+  total_voters:
+    range: integer
+    slot_uri: tg:total_voters
+
+  quiz:
+    range: boolean
+    slot_uri: tg:quiz
+
+  poll_closed:
+    range: boolean
+    slot_uri: tg:poll_closed
+
+  public_voters:
+    range: boolean
+    slot_uri: tg:public_voters
+
+  multiple_choice:
+    range: boolean
+    slot_uri: tg:multiple_choice
+
+  # ── Reaction properties (schema-only) ───────────────────────────────
+  reactor:
+    range: User
+    slot_uri: tg:reactor
+
+  emoji:
+    slot_uri: tg:emoji
+
+  target:
+    range: Post
+    slot_uri: tg:target
+
+  # ── GraphDocument collection slots ──────────────────────────────────
   community:
     range: Community
     inlined: true
 
-  users:
-    range: UserAccount
+  site:
+    range: Site
+    inlined: true
+
+  forums:
+    range: Forum
     multivalued: true
     inlined: true
 
-  links:
-    range: Link
+  users:
+    range: User
+    multivalued: true
+    inlined: true
+
+  persons:
+    range: Person
     multivalued: true
     inlined: true
 
@@ -194,57 +436,22 @@ slots:
     multivalued: true
     inlined: true
 
-  forwards:
-    range: integer
-    slot_uri: tg:forwards
-
-  pinned:
-    range: boolean
-    slot_uri: tg:pinned
-
-  topics:
+  concepts:
+    range: Concept
     multivalued: true
-    range: string
-    slot_uri: sioc:topic
+    inlined: true
 
-  mentions:
+  attachments:
+    range: Attachment
     multivalued: true
-    range: string
-    slot_uri: tg:mentions
+    inlined: true
 
-  entity_links:
+  linked_documents:
+    range: LinkedDocument
     multivalued: true
-    range: Link
-    slot_uri: sioc:links_to
+    inlined: true
 
-  num_views:
-    range: integer
-    slot_uri: sioc:num_views
-
-  num_replies:
-    range: integer
-    slot_uri: sioc:num_replies
-
-  reaction_count:
-    range: integer
-    slot_uri: tg:reaction_count
-
-  reactions:
+  polls:
+    range: Poll
     multivalued: true
-    range: string
-    slot_uri: tg:reactions
-
-  media_type:
-    range: MediaType
-    slot_uri: tg:media_type
-
-  forwarded_from:
-    slot_uri: tg:forwarded_from
-
-  is_service:
-    range: boolean
-    slot_uri: tg:is_service
-
-  service_action:
-    range: ServiceActionType
-    slot_uri: tg:service_action
+    inlined: true

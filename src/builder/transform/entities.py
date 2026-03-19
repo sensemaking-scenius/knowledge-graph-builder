@@ -1,8 +1,9 @@
-"""Entity extraction: hashtags, mentions, URLs from raw Telegram messages."""
+"""Entity extraction: hashtags, URLs from raw Telegram messages."""
 
 import re
 
-from builder.config import topic_uri
+from builder.config import concept_uri, document_uri
+from builder.models import Concept, LinkedDocument
 
 URL_RE = re.compile(r"(https?://[^\s<>()\[\]{}\"']+)", re.IGNORECASE)
 
@@ -15,13 +16,7 @@ def extract_urls(text: str) -> list[str]:
 
 
 def normalize_url(url: str) -> str:
-    """Normalize a URL: strip whitespace/newlines, ensure protocol prefix.
-
-    Telegram entity offsets are UTF-16 code units, so snippet extraction
-    can grab trailing junk (newlines, emoji).  We collapse that here and
-    reject anything that still isn't a plausible URI.
-    """
-    # Strip whitespace and newlines; take only the first "word"
+    """Normalize a URL: strip whitespace/newlines, ensure protocol prefix."""
     url = url.split()[0] if url.strip() else ""
     if not url:
         return url
@@ -30,8 +25,6 @@ def normalize_url(url: str) -> str:
     return f"https://{url}"
 
 
-# Characters allowed in a URI (RFC 3986 + common extras).  Anything
-# outside this set means the URL is garbled and should be dropped.
 _URI_OK = re.compile(r"^[A-Za-z][A-Za-z0-9+\-.]*://[^\s<>\"{}|\\^`]+$")
 
 
@@ -54,47 +47,73 @@ def ordered_dedup(items: list[str]) -> list[str]:
     return out
 
 
-def extract_entities(
-    text: str, entities: list[dict],
-) -> tuple[list[str], list[str], list[str]]:
-    """Parse Telegram entity objects from a raw message.
-
-    Returns (topic_iris, mention_iris, entity_urls).
-    """
-    topics: list[str] = []
-    mentions: list[str] = []
-    entity_urls: list[str] = []
+def extract_hashtags(text: str, entities: list[dict]) -> list[Concept]:
+    """Extract hashtag entities and return Concept objects."""
+    concepts: list[Concept] = []
+    seen: set[str] = set()
 
     for ent in entities:
         if not isinstance(ent, dict):
             continue
+        if ent.get("_") != "MessageEntityHashtag":
+            continue
+        off = ent.get("offset")
+        ln = ent.get("length")
+        if not isinstance(off, int) or not isinstance(ln, int) or ln <= 0:
+            continue
+        snippet = text[off : off + ln]
+        tag = snippet.lstrip("#")
+        if not tag:
+            continue
+        uri = concept_uri(tag)
+        if uri in seen:
+            continue
+        seen.add(uri)
+        concepts.append(Concept(id=uri, pref_label=tag))
 
-        t = ent.get("_")  # Telegram entity type discriminator
+    return concepts
+
+
+def extract_entity_urls(text: str, entities: list[dict]) -> list[str]:
+    """Extract URLs from Telegram entity objects."""
+    urls: list[str] = []
+    for ent in entities:
+        if not isinstance(ent, dict):
+            continue
+        t = ent.get("_")
         off = ent.get("offset")
         ln = ent.get("length")
 
-        snippet: str | None = None
-        if isinstance(off, int) and isinstance(ln, int) and ln > 0:
-            # Note: Telegram entity offsets are UTF-16 code units.
-            # This substring can be off for emojis; MVP accepts occasional mismatch.
+        if t == "MessageEntityUrl" and isinstance(off, int) and isinstance(ln, int) and ln > 0:
             snippet = text[off : off + ln]
-
-        if t == "MessageEntityHashtag" and snippet:
-            tag = snippet.lstrip("#")
-            if tag:
-                topics.append(topic_uri(tag))
-
-        if t == "MessageEntityMention" and snippet:
-            handle = snippet.lstrip("@")
-            if handle:
-                mentions.append(f"tg:mention/{handle}")
-
-        if t == "MessageEntityUrl" and snippet:
-            entity_urls.append(snippet)
+            if snippet:
+                urls.append(snippet)
 
         if t == "MessageEntityTextUrl":
             url = ent.get("url")
             if isinstance(url, str) and url:
-                entity_urls.append(url)
+                urls.append(url)
 
-    return topics, mentions, entity_urls
+    return urls
+
+
+def make_linked_document(url: str, webpage: dict | None = None) -> LinkedDocument:
+    """Create a LinkedDocument from a URL and optional Telegram WebPage preview."""
+    title = None
+    description = None
+    creator = None
+    site_name_val = None
+
+    if webpage:
+        title = webpage.get("title")
+        description = webpage.get("description")
+        creator = webpage.get("author")
+        site_name_val = webpage.get("site_name")
+
+    return LinkedDocument(
+        id=document_uri(url),
+        title=title,
+        doc_description=description,
+        doc_creator=creator,
+        site_name=site_name_val,
+    )

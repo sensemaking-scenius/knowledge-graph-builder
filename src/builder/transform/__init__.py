@@ -6,9 +6,34 @@ from collections import OrderedDict
 
 from linkml_runtime.dumpers import json_dumper
 
-from builder.config import MESSAGES_FILE, PARTICIPANTS_FILE, TOPICS_FILE, GRAPH_FILE, graph_uri
-from builder.models import GraphDocument, Link, Thread, UserAccount
-from builder.transform.channel import make_community
+from builder.config import (
+    CHANNEL_FILE,
+    FORUMS_FILE,
+    GRAPH_FILE,
+    MESSAGES_FILE,
+    PARTICIPANTS_FILE,
+    forum_uri,
+    graph_uri,
+)
+from builder.models import (
+    Attachment,
+    Concept,
+    Forum,
+    GraphDocument,
+    LinkedDocument,
+    Person,
+    Poll,
+    Post,
+    Site,
+    Thread,
+    User,
+)
+from builder.transform.channel import (
+    make_community,
+    make_site,
+    make_supergroup_forum,
+    make_topic_forum,
+)
 from builder.transform.messages import extract_channel_id, transform_message
 
 
@@ -45,28 +70,47 @@ def load_participants() -> tuple[dict[int, str], dict[int, dict]]:
     return names, metadata
 
 
-def load_topic_names() -> dict[int, str]:
-    """Load forum topic names from topics.json.
+def load_forums(channel_id: int) -> tuple[list[Forum], set[int]]:
+    """Load forum data from forums.json and build Forum entities.
 
-    Returns topic_id → title mapping.
+    Returns:
+        (forum_list, topic_ids set)
     """
-    if not TOPICS_FILE.exists():
-        return {}
-    with open(TOPICS_FILE, "r", encoding="utf-8") as f:
-        raw = json.load(f)
-    # JSON keys are strings, convert to int
-    return {int(k): v for k, v in raw.items()}
+    forums: list[Forum] = []
+    topic_ids: set[int] = set()
+
+    if not FORUMS_FILE.exists():
+        return forums, topic_ids
+
+    with open(FORUMS_FILE, "r", encoding="utf-8") as f:
+        raw_forums = json.load(f)
+
+    for entry in raw_forums:
+        tid = entry.get("id")
+        title = entry.get("title")
+        closed = entry.get("closed", False)
+        if tid is None:
+            continue
+        tid = int(tid)
+        topic_ids.add(tid)
+        forums.append(make_topic_forum(channel_id, tid, name=title, closed=closed))
+
+    return forums, topic_ids
 
 
 def transform() -> GraphDocument:
     """Read raw messages and build a LinkML GraphDocument."""
-    users: OrderedDict[int, UserAccount] = OrderedDict()
-    links: OrderedDict[str, Link] = OrderedDict()
+    # Registries
+    users: OrderedDict[int, User] = OrderedDict()
+    persons: OrderedDict[int, Person] = OrderedDict()
     threads: OrderedDict[int, Thread] = OrderedDict()
-    posts = []
+    concepts: OrderedDict[str, Concept] = OrderedDict()
+    linked_documents: OrderedDict[str, LinkedDocument] = OrderedDict()
+    attachments: OrderedDict[str, Attachment] = OrderedDict()
+    polls: OrderedDict[str, Poll] = OrderedDict()
+    posts: list[Post] = []
     seen_msg_ids: set[int] = set()
     participant_names, participant_metadata = load_participants()
-    topic_names = load_topic_names()
 
     first_channel_id: int | None = None
 
@@ -87,57 +131,93 @@ def transform() -> GraphDocument:
                 if first_channel_id is None:
                     continue
 
-            post = transform_message(
-                raw,
-                expected_channel_id=first_channel_id,
-                users=users,
-                links=links,
-                threads=threads,
-                participant_names=participant_names,
-                participant_metadata=participant_metadata,
-                topic_names=topic_names,
-            )
-            if post is not None:
-                posts.append(post)
+            # Load forums once we know the channel
+            if not hasattr(transform, "_forums_loaded"):
+                pass  # handled below
 
     if first_channel_id is None:
         raise RuntimeError(f"No messages found in {MESSAGES_FILE}")
 
+    # Load forums
+    topic_forums, forum_topic_ids = load_forums(first_channel_id)
+
+    # Second pass — now transform messages with full context
+    seen_msg_ids.clear()
+
+    with open(MESSAGES_FILE, "r", encoding="utf-8") as f:
+        for line in f:
+            raw = json.loads(line)
+
+            msg_id = raw.get("id")
+            if msg_id is not None:
+                if msg_id in seen_msg_ids:
+                    continue
+                seen_msg_ids.add(msg_id)
+
+            post = transform_message(
+                raw,
+                expected_channel_id=first_channel_id,
+                users=users,
+                persons=persons,
+                threads=threads,
+                concepts=concepts,
+                linked_documents=linked_documents,
+                attachments=attachments,
+                polls=polls,
+                participant_names=participant_names,
+                participant_metadata=participant_metadata,
+                forum_topic_ids=forum_topic_ids,
+            )
+            if post is not None:
+                posts.append(post)
+
+    # Build has_reply index (second pass over posts)
+    reply_index: dict[str, list[str]] = {}
+    for p in posts:
+        if p.reply_of:
+            reply_index.setdefault(p.reply_of, []).append(p.id)
+
+    for p in posts:
+        replies = reply_index.get(p.id)
+        if replies:
+            p.has_reply = replies
+
+    # Build hierarchy
     community = make_community(first_channel_id)
+    site = make_site()
+    supergroup_forum = make_supergroup_forum(
+        first_channel_id,
+        name=community.name,
+    )
 
-    # Build user dicts with all available fields
-    users_dict = {}
-    for u in users.values():
-        entry: dict = {"id": u.id}
-        if u.name:
-            entry["name"] = u.name
-        if u.username:
-            entry["username"] = u.username
-        if u.is_bot:
-            entry["is_bot"] = True
-        if u.is_verified:
-            entry["is_verified"] = True
-        if u.is_premium:
-            entry["is_premium"] = True
-        users_dict[u.id] = entry
+    # Wire Site.host_of
+    all_forums = [supergroup_forum] + topic_forums
+    site.host_of = [f.id for f in all_forums]
 
-    # Build thread dicts
-    threads_dict = {}
-    for t in threads.values():
-        entry = {"id": t.id}
-        if t.name:
-            entry["name"] = t.name
-        if t.has_parent:
-            entry["has_parent"] = t.has_parent
-        threads_dict[t.id] = entry
+    # Wire supergroup Forum.parent_of
+    child_ids = [f.id for f in topic_forums]
+    if child_ids:
+        supergroup_forum.parent_of = child_ids
+
+    # Build dicts for GraphDocument
+    users_dict = {u.id: u for u in users.values()}
+    persons_dict = {p.id: p for p in persons.values()}
+    threads_dict = {t.id: t for t in threads.values()}
+    forums_dict = {f.id: f for f in all_forums}
 
     doc = GraphDocument(
         id=graph_uri(first_channel_id),
         community=community,
-        users=users_dict,
-        links={link.id: {"id": link.id} for link in links.values()},
-        posts={p.id: p for p in posts},
+        site=site,
+        forums=forums_dict if forums_dict else None,
+        users=users_dict if users_dict else None,
+        persons=persons_dict if persons_dict else None,
+        posts={p.id: p for p in posts} if posts else None,
         threads=threads_dict if threads_dict else None,
+        concepts={c.id: c for c in concepts.values()} if concepts else None,
+        attachments={a.id: a for a in attachments.values()} if attachments else None,
+        linked_documents={d.id: d for d in linked_documents.values()} if linked_documents else None,
+        polls={p.id: p for p in polls.values()} if polls else None,
     )
 
     return doc
@@ -152,6 +232,16 @@ def main() -> None:
 
     n_posts = len(doc.posts) if isinstance(doc.posts, dict) else 0
     n_users = len(doc.users) if isinstance(doc.users, dict) else 0
-    n_links = len(doc.links) if isinstance(doc.links, dict) else 0
+    n_forums = len(doc.forums) if isinstance(doc.forums, dict) else 0
     n_threads = len(doc.threads) if isinstance(doc.threads, dict) else 0
-    print(f"Wrote {n_posts} posts, {n_users} users, {n_links} links, {n_threads} threads to {GRAPH_FILE}")
+    n_concepts = len(doc.concepts) if isinstance(doc.concepts, dict) else 0
+    n_attachments = len(doc.attachments) if isinstance(doc.attachments, dict) else 0
+    n_linked_docs = len(doc.linked_documents) if isinstance(doc.linked_documents, dict) else 0
+    n_persons = len(doc.persons) if isinstance(doc.persons, dict) else 0
+    n_polls = len(doc.polls) if isinstance(doc.polls, dict) else 0
+    print(
+        f"Wrote {n_posts} posts, {n_users} users, {n_persons} persons, "
+        f"{n_forums} forums, {n_threads} threads, {n_concepts} concepts, "
+        f"{n_attachments} attachments, {n_linked_docs} linked docs, {n_polls} polls "
+        f"to {GRAPH_FILE}"
+    )

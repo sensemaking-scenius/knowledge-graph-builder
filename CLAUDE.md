@@ -65,28 +65,39 @@ Each stage is a module in `src/builder/`, invoked via `uv run python -m builder.
 
 ### Schema-Driven Data Model
 
-The schema lives in `schemas/sioc.yaml` (LinkML format, SIOC ontology-aligned). It defines five classes:
+The schema lives in `schemas/sioc.yaml` (LinkML format, SIOC ontology-aligned). It defines 13 classes:
 
 - **GraphDocument** — root container (tree_root)
 - **Community** → `sioc:Community` — the Telegram channel/group
-- **UserAccount** → `sioc:UserAccount` — message authors
-- **Post** → `sioc:Post` — individual messages (with replies, topics, mentions, links)
-- **Link** → `schema:URL` — extracted URLs
+- **Site** → `sioc:Site` — "Telegram" platform
+- **Forum** → `sioc:Forum` — supergroup + topic channels (container hierarchy)
+- **Thread** → `sioc:Thread` — forum threads
+- **User** → `sioc:User` — message authors (agent accounts)
+- **Person** → `foaf:Person` — real people behind accounts
+- **Post** → `sioc:Post` — individual messages (with replies, topics, attachments, links)
+- **Poll** → `sioc_types:Poll` — poll messages
+- **Attachment** → `foaf:Document` — media files (photos, videos, documents)
+- **LinkedDocument** → `foaf:Document` — linked web pages with metadata
+- **Concept** → `skos:Concept` — hashtag topics
+- **Reaction** → `tg:Reaction` — emoji reactions (schema-only, not yet populated)
 
 `src/builder/models.py` is **auto-generated** from the schema via `just gen-model`. Do not edit it directly; modify `schemas/sioc.yaml` and regenerate.
 
 ### Key Ontology Prefixes
 
-| Prefix   | Namespace                            |
-|----------|--------------------------------------|
-| `sioc:`  | `http://rdfs.org/sioc/ns#`           |
-| `dcterms:` | `http://purl.org/dc/terms/`        |
-| `schema:` | `http://schema.org/`                |
-| `tg:`    | `https://example.org/telegram/`      |
+| Prefix       | Namespace                            |
+|--------------|--------------------------------------|
+| `sioc:`      | `http://rdfs.org/sioc/ns#`           |
+| `sioc_types:`| `http://rdfs.org/sioc/types#`        |
+| `dcterms:`   | `http://purl.org/dc/terms/`          |
+| `dc:`        | `http://purl.org/dc/elements/1.1/`   |
+| `foaf:`      | `http://xmlns.com/foaf/0.1/`         |
+| `skos:`      | `http://www.w3.org/2004/02/skos/core#`|
+| `tg:`        | `https://example.org/telegram/`      |
 
 ### Entity Extraction (Transform Stage)
 
-The `builder.transform.entities` module extracts from raw Telegram messages: hashtags → topics, @mentions, URLs (via regex + Telegram entities), reply relationships, forward counts, and pinned status.
+The `builder.transform.entities` module extracts from raw Telegram messages: hashtags → `skos:Concept` topics, URLs → `LinkedDocument` objects (with webpage preview metadata), media → `Attachment` entities, reply/forward relationships, and pinned status.
 
 ### Key Modules
 
