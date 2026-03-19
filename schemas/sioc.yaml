@@ -6,6 +6,8 @@ prefixes:
   sioc: http://rdfs.org/sioc/ns#
   dcterms: http://purl.org/dc/terms/
   schema: http://schema.org/
+  foaf: http://xmlns.com/foaf/0.1/
+  rdfs: http://www.w3.org/2000/01/rdf-schema#
   tg: https://example.org/telegram/
   linkml: https://w3id.org/linkml/
 
@@ -24,16 +26,32 @@ classes:
       - users
       - links
       - posts
+      - threads
 
   Community:
     class_uri: sioc:Community
     slots:
       - id
+      - name
+      - description
+      - member_count
+
+  Thread:
+    class_uri: sioc:Thread
+    slots:
+      - id
+      - name
+      - has_parent
 
   UserAccount:
     class_uri: sioc:UserAccount
     slots:
       - id
+      - name
+      - username
+      - is_bot
+      - is_verified
+      - is_premium
 
   Link:
     class_uri: schema:URL
@@ -46,8 +64,10 @@ classes:
       - id
       - content
       - created
+      - modified
       - has_creator
       - has_container
+      - has_thread
       - reply_to
       - links_to
       - forwards
@@ -55,11 +75,68 @@ classes:
       - topics
       - mentions
       - entity_links
+      - num_views
+      - num_replies
+      - reaction_count
+      - reactions
+      - media_type
+      - forwarded_from
+      - is_service
+      - service_action
+
+enums:
+  MediaType:
+    permissible_values:
+      photo:
+      video:
+      document:
+      webpage:
+      audio:
+      sticker:
+      other:
+
+  ServiceActionType:
+    permissible_values:
+      join:
+      leave:
+      pin:
+      title_change:
+      photo_change:
+      other:
 
 slots:
   id:
     identifier: true
     slot_uri: dcterms:identifier
+
+  name:
+    slot_uri: foaf:name
+
+  description:
+    slot_uri: dcterms:description
+
+  username:
+    slot_uri: foaf:accountName
+
+  member_count:
+    range: integer
+    slot_uri: tg:member_count
+
+  is_bot:
+    range: boolean
+    slot_uri: tg:is_bot
+
+  is_verified:
+    range: boolean
+    slot_uri: tg:is_verified
+
+  is_premium:
+    range: boolean
+    slot_uri: tg:is_premium
+
+  has_parent:
+    range: Community
+    slot_uri: sioc:has_parent
 
   content:
     slot_uri: sioc:content
@@ -68,6 +145,10 @@ slots:
     range: datetime
     slot_uri: dcterms:created
 
+  modified:
+    range: datetime
+    slot_uri: dcterms:modified
+
   has_creator:
     range: UserAccount
     slot_uri: sioc:has_creator
@@ -75,6 +156,10 @@ slots:
   has_container:
     range: Community
     slot_uri: sioc:has_container
+
+  has_thread:
+    range: Thread
+    slot_uri: tg:has_thread
 
   reply_to:
     range: Post
@@ -87,6 +172,7 @@ slots:
 
   community:
     range: Community
+    inlined: true
 
   users:
     range: UserAccount
@@ -100,6 +186,11 @@ slots:
 
   posts:
     range: Post
+    multivalued: true
+    inlined: true
+
+  threads:
+    range: Thread
     multivalued: true
     inlined: true
 
@@ -125,3 +216,35 @@ slots:
     multivalued: true
     range: Link
     slot_uri: sioc:links_to
+
+  num_views:
+    range: integer
+    slot_uri: sioc:num_views
+
+  num_replies:
+    range: integer
+    slot_uri: sioc:num_replies
+
+  reaction_count:
+    range: integer
+    slot_uri: tg:reaction_count
+
+  reactions:
+    multivalued: true
+    range: string
+    slot_uri: tg:reactions
+
+  media_type:
+    range: MediaType
+    slot_uri: tg:media_type
+
+  forwarded_from:
+    slot_uri: tg:forwarded_from
+
+  is_service:
+    range: boolean
+    slot_uri: tg:is_service
+
+  service_action:
+    range: ServiceActionType
+    slot_uri: tg:service_action

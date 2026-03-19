@@ -17,8 +17,14 @@ status:
   @echo "Raw:"
   @ls -la data/raw 2>/dev/null || true
 
-extract:
-  {{PY}} -m builder.extract
+extract days="30":
+  {{PY}} -m builder.extract --days {{days}}
+
+extract-full:
+  {{PY}} -m builder.extract --full
+
+extract-fresh:
+  {{PY}} -m builder.extract --fresh
 
 transform:
   {{PY}} -m builder.transform
@@ -29,12 +35,22 @@ serialize:
 load:
   {{PY}} -m builder.load
 
+demo:
+  {{PY}} -m builder.query
+
 build: transform serialize load
 
 run-all: extract build
 
-serve:
-  oxigraph serve --location data/store --bind localhost:7878
+# Oxigraph server (Docker)
+up:
+  docker compose up -d
+
+down:
+  docker compose down
+
+logs:
+  docker compose logs -f oxigraph
 
 query:
   curl -s -X POST http://localhost:7878/query \

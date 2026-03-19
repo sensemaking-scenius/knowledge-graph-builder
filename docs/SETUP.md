@@ -46,14 +46,14 @@ TG_ENTITY=@your_channel_username
 **TG_ENTITY examples:**
 - Public channel: `@channelname`
 - Private channel by ID: `-1001234567890`
-- Supergroup with -100 prefix: `-1001234567890`
+- Invite link: `https://t.me/+AbCdEfGhIjK`
 
 ### Authenticate
 
-Run the extraction script once to authenticate:
+Run the extraction once to authenticate:
 
 ```bash
-just extract
+just extract 7
 ```
 
 You'll be prompted to:
@@ -64,81 +64,65 @@ This creates a `tg.session` file that persists your login.
 
 ## 4. Run the Pipeline
 
-### First Time Setup
-
-Initialize data directories (happens automatically, but can be done manually):
+### Build the Graph
 
 ```bash
-just init
+just build
 ```
 
-### Run Full Pipeline
+This will:
+1. Transform raw messages into a LinkML graph document
+2. Serialize the graph to RDF/Turtle
+3. Load the Turtle into Oxigraph's on-disk store
 
-Process messages and build the knowledge graph:
+Expected output:
+```
+Wrote 86 posts, 15 users, 33 links to data/graph/linkml_graph.json
+Wrote RDF to data/rdf/sioc_graph.ttl
+Loaded RDF into Oxigraph store
+```
+
+### View the Dashboard
+
+```bash
+just demo
+```
+
+This reads the Turtle file directly into an in-memory store and displays an 11-section rich dashboard — no server needed.
+
+### Full Pipeline (Extract + Build)
 
 ```bash
 just run-all
 ```
 
-This will:
-1. Extract messages from Telegram (last 7 days)
-2. Canonicalize the data
-3. Transform to LinkML format
-4. Generate RDF triples
-5. Load into Oxigraph database
-
-Expected output:
-```
-Read 150 lines, wrote 150 canonical messages to data/raw/canonical_last_7_days.jsonl
-Wrote 150 posts, 45 users, 89 links to data/raw/linkml_graph.json
-Wrote RDF to data/rdf/sioc_graph.ttl
-Loaded RDF into Oxigraph store
-Triple count: 2847
-OK: pipeline complete. Run 'just serve' in another terminal, then 'just query-http'.
-```
+This runs extraction (last 30 days by default) followed by the full build.
 
 ## 5. Query the Graph
 
-### Start Oxigraph Server
+### Option 1: Built-in Dashboard (recommended)
 
-In a separate terminal:
+```bash
+just demo
+```
+
+No server needed. Shows community snapshot, top contributors, reply network, forum threads, media breakdown, and more.
+
+### Option 2: SPARQL Endpoint
+
+Start the Oxigraph server:
 
 ```bash
 just serve
 ```
 
-Keep this running while querying.
-
-### Run Test Query
-
-In another terminal:
+Then in another terminal:
 
 ```bash
-just query-http
+just query
 ```
 
-This counts all triples in the graph.
-
-### Access Web UI
-
-Open in your browser:
-```
-http://localhost:7878
-```
-
-Try this SPARQL query in the web interface:
-
-```sparql
-PREFIX sioc: <http://rdfs.org/sioc/ns#>
-
-SELECT ?post ?content ?creator
-WHERE {
-  ?post a sioc:Post ;
-        sioc:content ?content ;
-        sioc:has_creator ?creator .
-}
-LIMIT 10
-```
+Or open `http://localhost:7878` in your browser for the SPARQL web interface.
 
 ## 6. Verify Everything Works
 
@@ -149,9 +133,10 @@ just status
 ```
 
 You should see files in:
-- `data/raw/` - Intermediate JSON files
-- `data/rdf/` - RDF Turtle files
-- `data/oxigraph/store/` - Database files
+- `data/raw/` — messages.jsonl, participants.jsonl, channel.json, topics.json
+- `data/graph/` — linkml_graph.json
+- `data/rdf/` — sioc_graph.ttl
+- `data/store/` — Oxigraph database files
 
 ## Troubleshooting
 
@@ -166,7 +151,7 @@ You should see files in:
 Delete and re-authenticate:
 ```bash
 rm tg.session
-just extract
+just extract 7
 ```
 
 ### Empty data files
@@ -179,19 +164,14 @@ ls -lah data/raw/
 
 If extraction fails, verify your API credentials and network connection.
 
-### Permission denied on scripts
-
-Make scripts executable:
-```bash
-chmod +x scripts/*.py
-```
-
 ## Next Steps
 
-- **Customize time range**: Edit `scripts/extract_last_7_days.py` and change `timedelta(days=7)`
+- **Different time ranges**: `just extract 7` (week), `just extract 90` (quarter)
+- **Full history**: `just extract-full` (incremental on re-runs)
+- **Fresh re-fetch**: `just extract-fresh` (clears state first)
 - **Add more channels**: Run pipeline with different `TG_ENTITY` values
 - **Learn SPARQL**: Check the [SPARQL tutorial](https://www.w3.org/TR/sparql11-query/)
-- **Explore the schema**: Review `schemas/sioc_min.yaml`
+- **Explore the schema**: Review `schemas/sioc.yaml`
 
 ## Daily Usage
 
@@ -201,7 +181,10 @@ After initial setup, your typical workflow:
 # Extract new messages and update graph
 just run-all
 
-# Start server and explore
+# View the dashboard
+just demo
+
+# Or start SPARQL endpoint for custom queries
 just serve
 # (in another terminal)
 open http://localhost:7878
@@ -214,6 +197,7 @@ just run-all
 ## Getting Help
 
 - Check full documentation in `README.md`
+- Pipeline details in `docs/PIPELINE.md`
+- Graph inventory in `docs/GRAPH.md`
 - Review justfile recipes: `just --list`
-- Examine script code in `scripts/` directory
-- Read LinkML schema in `schemas/sioc_min.yaml`
+- Read LinkML schema in `schemas/sioc.yaml`

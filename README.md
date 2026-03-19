@@ -1,382 +1,271 @@
 # Telegram Community Knowledge Graph Builder
 
-A Python pipeline for extracting Telegram messages and transforming them into a semantic knowledge graph using SIOC ontology and RDF.
+A Python ETL pipeline that extracts messages from Telegram channels/groups, transforms them into a semantic knowledge graph using the [SIOC ontology](http://rdfs.org/sioc/spec/) and [LinkML](https://linkml.io/), and loads the resulting RDF into an [Oxigraph](https://github.com/oxigraph/oxigraph) triplestore for SPARQL querying.
 
-## Overview
+## Pipeline
 
-This project extracts messages from Telegram channels/groups, processes them through a multi-stage ETL pipeline, and loads them into an RDF graph database (Oxigraph) for semantic querying. The data model follows the [SIOC (Semantically-Interlinked Online Communities)](http://rdfs.org/sioc/spec/) ontology for representing social media content.
+```
+Telegram API
+     │
+     ▼
+┌─────────┐   messages.jsonl        ┌───────────┐   linkml_graph.json
+│ extract  │───participants.jsonl───▶│ transform │──────────────────────┐
+│          │   channel.json          └───────────┘                      │
+│          │   topics.json                                              ▼
+└──────────┘                                                    ┌─────────────┐   sioc_graph.ttl
+                                                                │  serialize  │────────────────┐
+                                                                └─────────────┘                │
+                                                                                    ┌──────────┤
+                                                                                    ▼          ▼
+                                                                             ┌────────┐  ┌────────┐
+                                                                             │  load  │  │  demo  │
+                                                                             │(store) │  │(in-mem)│
+                                                                             └────────┘  └────────┘
+```
+
+| Stage | Module | Input | Output |
+|-------|--------|-------|--------|
+| **Extract** | `builder.extract` | Telegram API | `data/raw/` (messages, participants, channel, topics) |
+| **Transform** | `builder.transform` | `data/raw/*.jsonl` + `*.json` | `data/graph/linkml_graph.json` |
+| **Serialize** | `builder.serialize` | LinkML JSON + schema | `data/rdf/sioc_graph.ttl` |
+| **Load** | `builder.load` | Turtle file | Oxigraph server (HTTP POST) |
 
 ## Features
 
-- **Telegram Message Extraction**: Fetch messages from Telegram channels/groups using the Telethon API
-- **Data Canonicalization**: Normalize raw Telegram data into a consistent format
-- **LinkML Schema**: Type-safe data modeling using LinkML with SIOC alignment
-- **RDF Generation**: Transform data into semantic RDF triples (Turtle format)
-- **Graph Database**: Load and query data using Oxigraph triplestore
-- **Entity Extraction**: Parse hashtags, mentions, URLs, and reply relationships
-- **Automated Pipeline**: Justfile recipes for running the entire ETL process
+- **Incremental extraction** — date-bounded (`--days N`), full history with incremental updates (`--full`), or fresh re-fetch (`--fresh`)
+- **Forum thread support** — maps Telegram forum topics to `sioc:Thread` with names
+- **Reactions & engagement** — reaction counts, individual emoji reactions, view counts, reply counts
+- **Media classification** — photo, video, document, webpage, audio, sticker via `MediaType` enum
+- **Service actions** — join/leave/pin/title changes via `ServiceActionType` enum
+- **Entity extraction** — hashtags → topics, @mentions, URLs, reply chains, forwards
+- **Rich dashboard** — 11-section CLI dashboard via `just demo` (community snapshot, top contributors, reply network, forum threads, media breakdown, and more)
+- **Schema-driven** — LinkML schema → auto-generated Python models → RDF/Turtle → SPARQL
 
-## Architecture
+## Data Model
 
-### Pipeline Stages
+The schema (`schemas/sioc.yaml`) defines 6 classes and 2 enums:
 
-```
-┌──────────────────┐
-│  Telegram API    │
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│  1. Extract      │  scripts/extract_last_7_days.py
-│  Raw Messages    │  → data/raw/messages_last_7_days.jsonl
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│  2. Canonicalize │  scripts/canonicalize_last_7_days.py
-│  Message Data    │  → data/raw/canonical_last_7_days.jsonl
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│  3. Transform to │  scripts/transform_to_linkml.py
-│  LinkML Model    │  → data/raw/linkml_graph.json
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│  4. Dump RDF     │  scripts/dump_rdf.py
-│  (Turtle)        │  → data/rdf/sioc_graph.ttl
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│  5. Load into    │  scripts/load_into_oxigraph.py
-│  Oxigraph Store  │  → data/oxigraph/store/
-└──────────────────┘
-```
+| Class | Ontology Mapping | Description |
+|-------|-----------------|-------------|
+| **GraphDocument** | (tree root) | Root container |
+| **Community** | `sioc:Community` | Telegram channel/group |
+| **Thread** | `sioc:Thread` | Forum topic |
+| **UserAccount** | `sioc:UserAccount` | Message author |
+| **Post** | `sioc:Post` | Individual message (22 slots) |
+| **Link** | `schema:URL` | Extracted URL |
 
-### Data Model
+| Enum | Values |
+|------|--------|
+| **MediaType** | photo, video, document, webpage, audio, sticker, other |
+| **ServiceActionType** | join, leave, pin, title_change, photo_change, other |
 
-The schema (`schemas/sioc_min.yaml`) defines:
+### Key Ontology Prefixes
 
-- **GraphDocument**: Root container for the knowledge graph
-- **Community**: Telegram channel/group (mapped to `sioc:Community`)
-- **UserAccount**: Telegram users (mapped to `sioc:UserAccount`)
-- **Post**: Individual messages (mapped to `sioc:Post`)
-- **Link**: URLs referenced in messages (mapped to `schema:URL`)
+| Prefix | Namespace |
+|--------|-----------|
+| `sioc:` | `http://rdfs.org/sioc/ns#` |
+| `dcterms:` | `http://purl.org/dc/terms/` |
+| `schema:` | `http://schema.org/` |
+| `foaf:` | `http://xmlns.com/foaf/0.1/` |
+| `tg:` | `https://example.org/telegram/` |
 
-Key relationships:
-- Posts have creators (users)
-- Posts belong to communities
-- Posts can reply to other posts
-- Posts can link to URLs
-- Posts can mention users and contain hashtag topics
+## Quick Start
 
-## Prerequisites
+### Prerequisites
 
-- **Python 3.13+** (specified in `.python-version`)
-- **uv** - Fast Python package manager ([installation](https://github.com/astral-sh/uv))
-- **just** - Command runner ([installation](https://github.com/casey/just))
-- **Telegram API credentials** (API ID and API Hash from [my.telegram.org](https://my.telegram.org))
-- **(Optional) Oxigraph CLI** - For serving the graph database ([installation](https://github.com/oxigraph/oxigraph))
+- **Python 3.13+**
+- **[uv](https://github.com/astral-sh/uv)** — Python package manager
+- **[just](https://github.com/casey/just)** — command runner
+- **A Docker-compatible runtime** (e.g. [Colima](https://github.com/ablemachines/colima), [Docker Desktop](https://docs.docker.com/get-docker/)) — for the Oxigraph triplestore
+- **Telegram API credentials** from [my.telegram.org](https://my.telegram.org)
 
-## Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd knowledge-graph-builder
-   ```
-
-2. **Install dependencies with uv**
-   ```bash
-   uv sync
-   ```
-
-3. **Set up environment variables**
-   
-   Create a `.env` file in the project root:
-   ```env
-   TG_API_ID=your_api_id
-   TG_API_HASH=your_api_hash
-   TG_SESSION=tg.session
-   TG_ENTITY=@channel_username_or_id
-   ```
-
-   - `TG_API_ID` and `TG_API_HASH`: Get from [my.telegram.org](https://my.telegram.org)
-   - `TG_ENTITY`: Can be:
-     - Channel username (e.g., `@channelname`)
-     - Channel ID (e.g., `-1001234567890`)
-     - Invite link
-
-4. **Authenticate with Telegram** (first run only)
-   ```bash
-   uv run python scripts/extract_last_7_days.py
-   ```
-   You'll be prompted to enter your phone number and verification code.
-
-## Usage
-
-### Initialize Data Directories
-
-If this is a fresh clone, initialize the required data directories:
+### Setup
 
 ```bash
-just init
+git clone <repository-url>
+cd knowledge-graph-builder
+uv sync
 ```
 
-This creates `data/raw/`, `data/rdf/`, and `data/oxigraph/store/` directories if they don't exist. The pipeline stages will automatically run `init` as needed, but you can run it manually if desired.
+Create a `.env` file (see `.env.example`):
 
-### Quick Start - Full Pipeline
+```env
+TG_API_ID=your_api_id
+TG_API_HASH=your_api_hash
+TG_SESSION=tg.session
+TG_ENTITY=@channel_username_or_id
+```
 
-Run the complete ETL pipeline:
+### Run
 
 ```bash
-just run-all
+# Start the Oxigraph triplestore
+just up
+
+# Extract last 7 days + build graph + load into Oxigraph
+just extract 7
+just build
+
+# Query via CLI dashboard (in-memory, no server needed) or SPARQL endpoint
+just demo
+just query
 ```
 
-This executes all stages sequentially and reports success when complete.
+First run will prompt for Telegram phone number and verification code.
 
-### Individual Pipeline Stages
+## All Commands
 
-Run specific stages using `just` recipes:
+### Pipeline
 
-```bash
-# 1. Extract messages from Telegram (last 7 days)
-just extract
+| Command | Description |
+|---------|-------------|
+| `just run-all` | Full pipeline: extract → transform → serialize → load |
+| `just build` | Build only: transform → serialize → load (skips extraction) |
+| `just extract` | Extract last 30 days (default) |
+| `just extract 7` | Extract last N days |
+| `just extract-full` | Full history, incremental on subsequent runs |
+| `just extract-fresh` | Clear state, re-fetch everything |
+| `just transform` | Raw JSON → LinkML graph document |
+| `just serialize` | LinkML JSON → RDF/Turtle |
+| `just load` | Turtle → Oxigraph server (requires `just up`) |
 
-# 2. Canonicalize raw data
-just canonicalize
+### Oxigraph Server
 
-# 3. Transform to LinkML format
-just transform
+| Command | Description |
+|---------|-------------|
+| `just up` | Start Oxigraph container (Docker, `localhost:7878`) |
+| `just down` | Stop Oxigraph container |
+| `just logs` | Tail Oxigraph container logs |
 
-# 4. Generate RDF (Turtle format)
-just dump-rdf
+### Querying
 
-# 5. Load into Oxigraph
-just load-oxigraph
-```
+| Command | Description |
+|---------|-------------|
+| `just demo` | Rich CLI dashboard (reads Turtle directly, no server needed) |
+| `just query` | SPARQL count query against running server |
 
-### Query the Knowledge Graph
+### Tooling
 
-**Option 1: Python queries**
-```bash
-uv run python scripts/query_oxigraph.py
-```
-
-**Option 2: HTTP queries** (requires Oxigraph server)
-
-Start the Oxigraph server:
-```bash
-just serve
-# or manually:
-oxigraph serve --location data/oxigraph/store --bind localhost:7878
-```
-
-Query via HTTP:
-```bash
-just query-http
-# or manually:
-curl -X POST http://localhost:7878/query \
-  -H "Content-Type: application/sparql-query" \
-  --data 'SELECT (COUNT(*) AS ?count) WHERE { ?s ?p ?o }'
-```
-
-### Check Pipeline Status
-
-View the current state of data directories:
-```bash
-just status
-```
-
-### Clean Generated Data
-
-Remove all generated data files while preserving directory structure:
-```bash
-just clean
-```
-
-This deletes:
-- `data/raw/*.jsonl` and `data/raw/*.json`
-- `data/rdf/*.ttl`
-- `data/oxigraph/store/*`
-
-The directories themselves are preserved (with `.gitkeep` files for git).
+| Command | Description |
+|---------|-------------|
+| `just status` | Show data directory contents |
+| `just clean` | Remove generated data, preserve directories |
+| `just gen-model` | Regenerate `models.py` from schema |
+| `just validate` | Validate LinkML schema |
+| `just typecheck` | Run Pyright type checker |
 
 ## Project Structure
 
 ```
 knowledge-graph-builder/
 ├── schemas/
-│   └── sioc_min.yaml           # LinkML schema definition
-├── src/
-│   └── builder/
-│       ├── __init__.py
-│       └── sioc_model.py       # Generated Python classes from schema
-├── scripts/
-│   ├── extract_last_7_days.py  # Stage 1: Telegram extraction
-│   ├── canonicalize_last_7_days.py  # Stage 2: Data normalization
-│   ├── transform_to_linkml.py  # Stage 3: LinkML transformation
-│   ├── dump_rdf.py             # Stage 4: RDF serialization
-│   └── load_into_oxigraph.py   # Stage 5: Graph database loading
+│   └── sioc.yaml                  # LinkML schema (SIOC-aligned)
+├── src/builder/
+│   ├── __init__.py
+│   ├── config.py                  # Paths, env vars, URI helpers
+│   ├── extract.py                 # Stage 1: Telegram API → raw files
+│   ├── transform/                 # Stage 2: raw → LinkML graph
+│   │   ├── __init__.py            #   Orchestrator + graph assembly
+│   │   ├── channel.py             #   Community + thread builders
+│   │   ├── users.py               #   UserAccount builder
+│   │   ├── messages.py            #   Post builder
+│   │   └── entities.py            #   Hashtags, mentions, URLs, replies
+│   ├── serialize.py               # Stage 3: LinkML JSON → RDF/Turtle
+│   ├── load.py                    # Stage 4: Turtle → Oxigraph store
+│   ├── query.py                   # Demo dashboard (11-section rich CLI)
+│   └── models.py                  # Auto-generated from schema (don't edit)
 ├── data/
-│   ├── raw/                    # Intermediate JSON/JSONL files
-│   │   └── .gitkeep           # Preserves directory in git
-│   ├── rdf/                    # RDF Turtle files
-│   │   └── .gitkeep           # Preserves directory in git
-│   └── oxigraph/               # Oxigraph database files
-│       └── store/
-│           └── .gitkeep       # Preserves directory in git
-├── justfile                    # Task automation recipes
-├── pyproject.toml              # Python dependencies (uv)
-├── .env                        # Environment variables (create this)
-└── README.md
+│   ├── raw/                       # Extract output (messages, participants, etc.)
+│   ├── graph/                     # Transform output (linkml_graph.json)
+│   ├── rdf/                       # Serialize output (sioc_graph.ttl)
+│   └── store/                     # Load output (Oxigraph database)
+├── docs/
+│   ├── SETUP.md                   # Quick setup guide
+│   ├── PIPELINE.md                # Pipeline architecture details
+│   └── GRAPH.md                   # Graph inventory (what's in the data)
+├── docker-compose.yml             # Oxigraph triplestore service
+├── justfile                       # Task automation recipes
+├── pyproject.toml                 # Dependencies (uv)
+└── .env                           # Telegram credentials (create this)
 ```
-
-## Configuration
-
-### Adjusting Time Range
-
-By default, the pipeline extracts messages from the last 7 days. To change this, edit `scripts/extract_last_7_days.py`:
-
-```python
-since = datetime.now(timezone.utc) - timedelta(days=7)  # Change 7 to desired days
-```
-
-### Multiple Channels
-
-The current implementation processes one channel per run. To process multiple channels:
-1. Run the pipeline for each channel separately with different `TG_ENTITY` values
-2. Modify the scripts to merge graphs or use separate graph documents
-
-## Data Flow Details
-
-### Stage 1: Extract (Raw)
-- Connects to Telegram using Telethon
-- Fetches messages from specified channel/group
-- Outputs: `data/raw/messages_last_7_days.jsonl` (raw Telegram API format)
-
-### Stage 2: Canonicalize
-- Extracts key fields: chat_id, message_id, text, timestamps
-- Parses URLs using regex
-- Handles reply relationships
-- Outputs: `data/raw/canonical_last_7_days.jsonl` (normalized format)
-
-### Stage 3: Transform
-- Builds LinkML-compliant object graph
-- Creates Community, UserAccount, Post, and Link objects
-- Extracts entities: hashtags → topics, mentions, URLs
-- Outputs: `data/raw/linkml_graph.json` (typed JSON)
-
-### Stage 4: Dump RDF
-- Serializes LinkML objects to RDF triples
-- Uses SIOC vocabulary for social data
-- Outputs: `data/rdf/sioc_graph.ttl` (Turtle format)
-
-### Stage 5: Load
-- Ingests RDF into Oxigraph triplestore
-- Enables SPARQL queries
-- Outputs: `data/oxigraph/store/` (database files)
 
 ## Example SPARQL Queries
 
-### Count all triples
-```sparql
-SELECT (COUNT(*) AS ?count) 
-WHERE { ?s ?p ?o }
-```
+### Posts with reactions
 
-### List all posts with creators
 ```sparql
 PREFIX sioc: <http://rdfs.org/sioc/ns#>
+PREFIX tg:   <https://example.org/telegram/>
 
-SELECT ?post ?content ?creator
+SELECT ?post ?content ?count
 WHERE {
   ?post a sioc:Post ;
         sioc:content ?content ;
-        sioc:has_creator ?creator .
+        tg:reaction_count ?count .
+}
+ORDER BY DESC(?count)
+LIMIT 10
+```
+
+### Forum thread activity
+
+```sparql
+PREFIX sioc: <http://rdfs.org/sioc/ns#>
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+PREFIX tg:   <https://example.org/telegram/>
+
+SELECT ?name (COUNT(?post) AS ?posts)
+WHERE {
+  ?post a sioc:Post ;
+        tg:has_thread ?thread .
+  ?thread foaf:name ?name .
+}
+GROUP BY ?name
+ORDER BY DESC(?posts)
+```
+
+### Posts with media
+
+```sparql
+PREFIX sioc: <http://rdfs.org/sioc/ns#>
+PREFIX tg:   <https://example.org/telegram/>
+
+SELECT ?post ?content ?mtype
+WHERE {
+  ?post a sioc:Post ;
+        sioc:content ?content ;
+        tg:media_type ?mtype .
 }
 LIMIT 10
 ```
 
-### Find posts with hashtags
+### Reply threads
+
 ```sparql
 PREFIX sioc: <http://rdfs.org/sioc/ns#>
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>
 
-SELECT ?post ?content ?topic
+SELECT ?replier_name ?original_name (COUNT(*) AS ?count)
 WHERE {
-  ?post a sioc:Post ;
-        sioc:content ?content ;
-        sioc:topic ?topic .
+  ?reply sioc:has_creator ?replier ;
+         sioc:reply_of ?parent .
+  ?parent sioc:has_creator ?original .
+  OPTIONAL { ?replier foaf:accountName ?replier_name }
+  OPTIONAL { ?original foaf:accountName ?original_name }
 }
-LIMIT 10
-```
-
-### Find reply threads
-```sparql
-PREFIX sioc: <http://rdfs.org/sioc/ns#>
-
-SELECT ?post ?content ?replyTo
-WHERE {
-  ?post a sioc:Post ;
-        sioc:content ?content ;
-        sioc:reply_of ?replyTo .
-}
+GROUP BY ?replier_name ?original_name
+ORDER BY DESC(?count)
 LIMIT 10
 ```
 
 ## Dependencies
 
-Core libraries (see `pyproject.toml`):
-- **linkml** (1.9.6+): Schema definition and validation
-- **linkml-runtime** (1.9.5+): Runtime support for LinkML models
-- **pyoxigraph** (0.5.4+): Python bindings for Oxigraph RDF store
-- **telethon** (1.42.0+): Telegram API client
-- **python-dotenv** (1.2.1+): Environment variable management
-- **rich** (14.3.1+): Terminal formatting
-
-## Troubleshooting
-
-### Authentication Issues
-If you encounter "Could not find the input entity", ensure:
-- Your API credentials are correct
-- The `TG_ENTITY` value is valid
-- For private channels, your account has access
-
-### Session Expired
-Delete `tg.session` and re-run to re-authenticate:
-```bash
-rm tg.session
-uv run python scripts/extract_last_7_days.py
-```
-
-### Empty Data Files
-Check pipeline status:
-```bash
-just status
-```
-Verify each stage produces output before proceeding to the next.
-
-### RDF Serialization Errors
-If you see issues with URL normalization or entity extraction, check:
-- The canonical format has valid JSON
-- URLs are properly prefixed with protocols
-- Entity offsets are within text bounds
-
-## Development
-
-### Regenerate Python Model from Schema
-After modifying `schemas/sioc_min.yaml`:
-```bash
-uv run gen-python schemas/sioc_min.yaml > src/builder/sioc_model.py
-```
-
-### Type Checking
-```bash
-uv run pyright
-```
+- **[linkml](https://linkml.io/)** — schema definition + code generation
+- **[linkml-runtime](https://linkml.io/)** — runtime support for generated models
+- **[Oxigraph](https://github.com/oxigraph/oxigraph)** — RDF triplestore (Docker for persistence, pyoxigraph for in-memory demo)
+- **[telethon](https://docs.telethon.dev/)** — Telegram client API
+- **[rich](https://github.com/Textualize/rich)** — terminal formatting
+- **[python-dotenv](https://github.com/theskumar/python-dotenv)** — environment variable management
 
 ## Resources
 
@@ -385,6 +274,3 @@ uv run pyright
 - [Oxigraph Documentation](https://github.com/oxigraph/oxigraph)
 - [Telethon Documentation](https://docs.telethon.dev/)
 - [SPARQL 1.1 Query Language](https://www.w3.org/TR/sparql11-query/)
-
-Some questions:
-- Does Telegram actually have thread support?

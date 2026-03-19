@@ -11,6 +11,11 @@ Telegram Community Knowledge Graph Builder — a Python ETL pipeline that extrac
 All commands use `just` (task runner) and `uv` (Python package manager).
 
 ```bash
+# Oxigraph server (Docker) — must be running for load/query
+just up               # Start Oxigraph container (localhost:7878)
+just down             # Stop Oxigraph container
+just logs             # Tail Oxigraph logs
+
 # Full pipeline (extract → transform → serialize → load)
 just run-all
 
@@ -21,11 +26,11 @@ just build
 just extract          # Telegram API → data/raw/messages.jsonl
 just transform        # Raw JSON → data/graph/linkml_graph.json
 just serialize        # LinkML JSON → data/rdf/sioc_graph.ttl
-just load             # Turtle → data/store/ (Oxigraph)
+just load             # Turtle → Oxigraph (HTTP POST)
 
-# Serve Oxigraph for SPARQL queries
-just serve            # localhost:7878
-just query            # Test SPARQL count query against running server
+# Querying
+just query            # SPARQL count query against running server
+just demo             # Rich CLI dashboard (in-memory, no server needed)
 
 # Schema tooling
 just gen-model        # Regenerate models.py from schema
@@ -56,7 +61,7 @@ Each stage is a module in `src/builder/`, invoked via `uv run python -m builder.
 | **Extract** | `builder.extract` | Telegram API | `messages.jsonl` |
 | **Transform** | `builder.transform` | Raw JSON files | `linkml_graph.json` |
 | **Serialize** | `builder.serialize` | LinkML JSON + schema | `sioc_graph.ttl` |
-| **Load** | `builder.load` | Turtle file | Oxigraph store |
+| **Load** | `builder.load` | Turtle file | Oxigraph (HTTP POST) |
 
 ### Schema-Driven Data Model
 
@@ -89,7 +94,7 @@ The `builder.transform.entities` module extracts from raw Telegram messages: has
 - **`extract.py`** — Telegram API client
 - **`transform/`** — package with sub-modules for messages, users, channels, entities
 - **`serialize.py`** — LinkML JSON → RDF/Turtle via rdflib
-- **`load.py`** — Turtle → Oxigraph triplestore
+- **`load.py`** — Turtle → Oxigraph via HTTP POST (requires `just up`)
 
 ## Configuration
 
@@ -102,7 +107,7 @@ Requires a `.env` file (see `.env.example`):
 
 - **Python 3.13+**, managed with `uv`
 - **LinkML** — schema definition + code generation
-- **pyoxigraph** — embedded RDF triplestore
+- **Oxigraph** — RDF triplestore (Docker container for persistence, pyoxigraph for in-memory demo)
 - **Telethon** — Telegram client API
 - **Pyright** — type checking (configured in `pyrightconfig.json`, source root: `src/`)
 

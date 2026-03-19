@@ -1,0 +1,9 @@
+services:
+  oxigraph:
+    image: oxigraph/oxigraph
+    container_name: oxigraph
+    ports:
+      - "7878:7878"
+    volumes:
+      - ./data/store:/data
+    command: serve --location /data --bind 0.0.0.0:7878

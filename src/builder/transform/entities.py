@@ -15,17 +15,29 @@ def extract_urls(text: str) -> list[str]:
 
 
 def normalize_url(url: str) -> str:
-    """Ensure a URL has a protocol prefix.
+    """Normalize a URL: strip whitespace/newlines, ensure protocol prefix.
 
-    Telegram sometimes detects bare domain names (e.g. "Fly.io")
-    as URLs. These need https:// to avoid RDF CURIE confusion.
+    Telegram entity offsets are UTF-16 code units, so snippet extraction
+    can grab trailing junk (newlines, emoji).  We collapse that here and
+    reject anything that still isn't a plausible URI.
     """
-    url = url.strip()
+    # Strip whitespace and newlines; take only the first "word"
+    url = url.split()[0] if url.strip() else ""
     if not url:
         return url
     if "://" in url:
         return url
     return f"https://{url}"
+
+
+# Characters allowed in a URI (RFC 3986 + common extras).  Anything
+# outside this set means the URL is garbled and should be dropped.
+_URI_OK = re.compile(r"^[A-Za-z][A-Za-z0-9+\-.]*://[^\s<>\"{}|\\^`]+$")
+
+
+def is_valid_url(url: str) -> bool:
+    """Return True if *url* looks like a usable absolute URI."""
+    return bool(_URI_OK.match(url))
 
 
 def ordered_dedup(items: list[str]) -> list[str]:

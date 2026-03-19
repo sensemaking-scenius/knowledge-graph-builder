@@ -18,6 +18,7 @@ STORE_DIR = ROOT / "data" / "store"
 MESSAGES_FILE = RAW_DIR / "messages.jsonl"
 CHANNEL_FILE = RAW_DIR / "channel.json"
 PARTICIPANTS_FILE = RAW_DIR / "participants.jsonl"
+TOPICS_FILE = RAW_DIR / "topics.json"
 GRAPH_FILE = GRAPH_DIR / "linkml_graph.json"
 TURTLE_FILE = RDF_DIR / "sioc_graph.ttl"
 SCHEMA_FILE = ROOT / "schemas" / "sioc.yaml"
@@ -27,6 +28,10 @@ TG_API_ID = int(os.environ["TG_API_ID"])
 TG_API_HASH = os.environ["TG_API_HASH"]
 TG_SESSION = os.environ.get("TG_SESSION", "tg.session")
 TG_ENTITY = os.environ["TG_ENTITY"]
+
+# Extraction settings
+EXTRACT_DAYS = int(os.environ.get("EXTRACT_DAYS", "30"))
+STATE_FILE = RAW_DIR / "extract_state.json"
 
 
 # URI helpers

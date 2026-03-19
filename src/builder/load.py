@@ -1,32 +1,55 @@
-"""Load stage: RDF/Turtle → Oxigraph triplestore."""
+"""Load stage: POST RDF/Turtle to Oxigraph SPARQL server."""
 
-from typing import Any, Iterable, cast
+import json
+import sys
+from urllib.error import URLError
+from urllib.request import Request, urlopen
 
-from pyoxigraph import RdfFormat, Store
+from builder.config import TURTLE_FILE
 
-from builder.config import TURTLE_FILE, STORE_DIR
+OXIGRAPH_STORE_URL = "http://localhost:7878/store"
 
 
 def main() -> None:
-    STORE_DIR.mkdir(parents=True, exist_ok=True)
+    if not TURTLE_FILE.exists():
+        print(f"Turtle file not found: {TURTLE_FILE}")
+        print("Run `just build` first (transform → serialize).")
+        sys.exit(1)
 
-    store = Store(str(STORE_DIR))
+    data = TURTLE_FILE.read_bytes()
 
-    with open(TURTLE_FILE, "rb") as f:
-        store.load(f, format=RdfFormat.TURTLE)
+    # Clear existing data, then load fresh
+    req_clear = Request(OXIGRAPH_STORE_URL, method="PUT", data=b"")
+    req_clear.add_header("Content-Type", "application/x-turtle")
 
-    store.flush()
-    print("Loaded RDF into Oxigraph store")
+    req_load = Request(OXIGRAPH_STORE_URL, method="POST", data=data)
+    req_load.add_header("Content-Type", "application/x-turtle")
 
-    q = """
-    SELECT (COUNT(*) AS ?count)
-    WHERE { ?s ?p ?o . }
-    """
-    result = store.query(q)
-    rows = cast(Iterable[Any], result)
+    try:
+        urlopen(req_clear)
+        urlopen(req_load)
+    except URLError as e:
+        print(f"Failed to connect to Oxigraph at {OXIGRAPH_STORE_URL}")
+        print(f"Is the server running? Start it with: just up")
+        print(f"Error: {e}")
+        sys.exit(1)
 
-    for row in rows:
-        print("Triple count:", row["count"].value)
+    print(f"Loaded {len(data):,} bytes of Turtle into Oxigraph")
+
+    # Verify with a count query
+    count_query = "SELECT (COUNT(*) AS ?count) WHERE { ?s ?p ?o }"
+    req_q = Request(
+        "http://localhost:7878/query",
+        method="POST",
+        data=count_query.encode(),
+    )
+    req_q.add_header("Content-Type", "application/sparql-query")
+    req_q.add_header("Accept", "application/sparql-results+json")
+
+    with urlopen(req_q) as resp:
+        result = json.loads(resp.read())
+        count = result["results"]["bindings"][0]["count"]["value"]
+        print(f"Triple count: {count}")
 
 
 if __name__ == "__main__":
