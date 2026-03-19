@@ -50,7 +50,7 @@
 - [x] Transform: 94 posts, 15 users, 35 links, 14 threads
 - [x] Serialize: 1261 triples in Turtle
 - [x] Demo dashboard: all 11 sections render correctly
-- [ ] `just load` — blocked by pyoxigraph 0.5.4 persistent store bug (pre-existing, unrelated)
+- [x] `just load` — resolved by switching to HTTP POST to Dockerized Oxigraph
 
 ---
 
@@ -192,8 +192,8 @@ Detailed decisions and rationale: `elucidate-data-model-migration.md`.
 ## Phase 8: Load + Query
 
 ### 8.1 Load
-- [ ] `just load` works (requires Docker Oxigraph — untested offline)
-- [ ] Triple count is reasonable
+- [x] `just load` works (requires Docker Oxigraph)
+- [x] Triple count is reasonable
 
 ### 8.2 Rewrite `query.py`
 - [x] Update namespace prefixes (PREFIXES block with all 8 prefixes)
@@ -213,14 +213,14 @@ Detailed decisions and rationale: `elucidate-data-model-migration.md`.
 
 ### 8.3 End-to-end test
 - [x] `just demo` — Rich dashboard, all 11 sections render correctly
-- [ ] `just load` + `just query` — requires Docker Oxigraph
+- [x] `just load` + `just query` — Docker Oxigraph
 
 ---
 
 ## Phase 9: Documentation + Cleanup
 
 - [x] Update `CLAUDE.md` schema section (13 classes, new prefixes)
-- [ ] Update `docs/data-model.md` if implementation deviations
-- [ ] Update `README.md`
+- [x] Update docs (GRAPH.md, PIPELINE.md, SETUP.md) to match new schema
+- [x] Update `README.md`
 - [x] Clean up dead code / unused imports
 - [x] Update memory file with new schema state

@@ -9,6 +9,7 @@ Before you begin, install:
 - **Python 3.13+** - Check with `python --version`
 - **uv** - Python package manager: `curl -LsSf https://astral.sh/uv/install.sh | sh`
 - **just** - Command runner: `brew install just` (macOS) or see [installation guide](https://github.com/casey/just#installation)
+- **Docker** - For the Oxigraph triplestore: [Docker Desktop](https://docs.docker.com/get-docker/) or [Colima](https://github.com/ablemachines/colima)
 
 ## 2. Clone and Install
 
@@ -64,6 +65,14 @@ This creates a `tg.session` file that persists your login.
 
 ## 4. Run the Pipeline
 
+### Start Oxigraph
+
+```bash
+just up
+```
+
+This starts a Dockerized Oxigraph triplestore at `localhost:7878`.
+
 ### Build the Graph
 
 ```bash
@@ -71,16 +80,9 @@ just build
 ```
 
 This will:
-1. Transform raw messages into a LinkML graph document
+1. Transform raw messages into a LinkML graph document (13 entity types)
 2. Serialize the graph to RDF/Turtle
-3. Load the Turtle into Oxigraph's on-disk store
-
-Expected output:
-```
-Wrote 86 posts, 15 users, 33 links to data/graph/linkml_graph.json
-Wrote RDF to data/rdf/sioc_graph.ttl
-Loaded RDF into Oxigraph store
-```
+3. Load the Turtle into the Oxigraph server via HTTP POST
 
 ### View the Dashboard
 
@@ -106,17 +108,17 @@ This runs extraction (last 30 days by default) followed by the full build.
 just demo
 ```
 
-No server needed. Shows community snapshot, top contributors, reply network, forum threads, media breakdown, and more.
+No server needed. Shows community snapshot, top contributors, reply network, forum hierarchy, topic distribution, shared links, media breakdown, and more.
 
 ### Option 2: SPARQL Endpoint
 
-Start the Oxigraph server:
+Start the Oxigraph server (if not already running):
 
 ```bash
-just serve
+just up
 ```
 
-Then in another terminal:
+Then query:
 
 ```bash
 just query
@@ -133,10 +135,9 @@ just status
 ```
 
 You should see files in:
-- `data/raw/` — messages.jsonl, participants.jsonl, channel.json, topics.json
+- `data/raw/` — messages.jsonl, participants.jsonl, channel.json, forums.json
 - `data/graph/` — linkml_graph.json
 - `data/rdf/` — sioc_graph.ttl
-- `data/store/` — Oxigraph database files
 
 ## Troubleshooting
 
@@ -164,6 +165,14 @@ ls -lah data/raw/
 
 If extraction fails, verify your API credentials and network connection.
 
+### Oxigraph connection refused
+
+Make sure Docker is running and the container is up:
+```bash
+just up
+just logs
+```
+
 ## Next Steps
 
 - **Different time ranges**: `just extract 7` (week), `just extract 90` (quarter)
@@ -179,14 +188,13 @@ After initial setup, your typical workflow:
 
 ```bash
 # Extract new messages and update graph
+just up
 just run-all
 
 # View the dashboard
 just demo
 
-# Or start SPARQL endpoint for custom queries
-just serve
-# (in another terminal)
+# Or query the SPARQL endpoint directly
 open http://localhost:7878
 
 # Clean old data before fresh run

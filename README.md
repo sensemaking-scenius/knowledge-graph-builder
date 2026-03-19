@@ -6,68 +6,87 @@ A Python ETL pipeline that extracts messages from Telegram channels/groups, tran
 
 ```
 Telegram API
-     │
-     ▼
-┌─────────┐   messages.jsonl        ┌───────────┐   linkml_graph.json
-│ extract  │───participants.jsonl───▶│ transform │──────────────────────┐
-│          │   channel.json          └───────────┘                      │
-│          │   topics.json                                              ▼
-└──────────┘                                                    ┌─────────────┐   sioc_graph.ttl
-                                                                │  serialize  │────────────────┐
-                                                                └─────────────┘                │
-                                                                                    ┌──────────┤
-                                                                                    ▼          ▼
-                                                                             ┌────────┐  ┌────────┐
-                                                                             │  load  │  │  demo  │
-                                                                             │(store) │  │(in-mem)│
-                                                                             └────────┘  └────────┘
+     |
+     v
++---------+   messages.jsonl        +-----------+   linkml_graph.json
+| extract |---participants.jsonl--->| transform |----------------------+
+|         |   channel.json          +-----------+                      |
+|         |   forums.json                                              v
++---------+                                                    +-------------+   sioc_graph.ttl
+                                                               |  serialize  |----------------+
+                                                               +-------------+                |
+                                                                                    +---------+
+                                                                                    v         v
+                                                                             +--------+  +--------+
+                                                                             |  load  |  |  demo  |
+                                                                             |(Docker)|  |(in-mem)|
+                                                                             +--------+  +--------+
 ```
 
 | Stage | Module | Input | Output |
 |-------|--------|-------|--------|
-| **Extract** | `builder.extract` | Telegram API | `data/raw/` (messages, participants, channel, topics) |
+| **Extract** | `builder.extract` | Telegram API | `data/raw/` (messages, participants, channel, forums) |
 | **Transform** | `builder.transform` | `data/raw/*.jsonl` + `*.json` | `data/graph/linkml_graph.json` |
 | **Serialize** | `builder.serialize` | LinkML JSON + schema | `data/rdf/sioc_graph.ttl` |
-| **Load** | `builder.load` | Turtle file | Oxigraph server (HTTP POST) |
+| **Load** | `builder.load` | Turtle file | Oxigraph server (HTTP POST to Docker container) |
 
 ## Features
 
+- **SIOC-aligned data model** — 13 classes mapped to SIOC, FOAF, Dublin Core, and SKOS ontologies
 - **Incremental extraction** — date-bounded (`--days N`), full history with incremental updates (`--full`), or fresh re-fetch (`--fresh`)
-- **Forum thread support** — maps Telegram forum topics to `sioc:Thread` with names
-- **Reactions & engagement** — reaction counts, individual emoji reactions, view counts, reply counts
-- **Media classification** — photo, video, document, webpage, audio, sticker via `MediaType` enum
-- **Service actions** — join/leave/pin/title changes via `ServiceActionType` enum
-- **Entity extraction** — hashtags → topics, @mentions, URLs, reply chains, forwards
-- **Rich dashboard** — 11-section CLI dashboard via `just demo` (community snapshot, top contributors, reply network, forum threads, media breakdown, and more)
+- **Forum hierarchy** — Community → Site → Forum (supergroup + topic channels) → Thread
+- **Entity extraction** — hashtags → `skos:Concept`, URLs → `LinkedDocument` with preview metadata, media → `Attachment` with MIME types
+- **Reply + forward graphs** — `sioc:reply_of`/`has_reply` (both directions) and `sioc:sibling` for cross-posted content
+- **Rich dashboard** — 11-section CLI dashboard via `just demo` (community snapshot, top contributors, reply network, forum hierarchy, topic distribution, and more)
 - **Schema-driven** — LinkML schema → auto-generated Python models → RDF/Turtle → SPARQL
 
 ## Data Model
 
-The schema (`schemas/sioc.yaml`) defines 6 classes and 2 enums:
+The schema (`schemas/sioc.yaml`) defines 13 classes and 1 enum:
 
 | Class | Ontology Mapping | Description |
 |-------|-----------------|-------------|
-| **GraphDocument** | (tree root) | Root container |
-| **Community** | `sioc:Community` | Telegram channel/group |
-| **Thread** | `sioc:Thread` | Forum topic |
-| **UserAccount** | `sioc:UserAccount` | Message author |
-| **Post** | `sioc:Post` | Individual message (22 slots) |
-| **Link** | `schema:URL` | Extracted URL |
+| **GraphDocument** | *(tree root)* | Root container for all entities |
+| **Community** | `sioc:Community` | The community (people + purpose) |
+| **Site** | `sioc:Site` | Telegram platform |
+| **Forum** | `sioc:Forum` | Supergroup (organizational) or topic channel (where messages live) |
+| **Thread** | `sioc:Thread` | Reply thread within a topic channel |
+| **User** | `sioc:User` | Telegram account |
+| **Person** | `foaf:Person` | Real person behind an account |
+| **Post** | `sioc:Post` | Individual message |
+| **Poll** | `sioc_types:Poll` | Poll attached to a message |
+| **Attachment** | `foaf:Document` | Media file (photo, video, document, etc.) |
+| **LinkedDocument** | `foaf:Document` | Linked web page with preview metadata |
+| **Concept** | `skos:Concept` | Hashtag topic |
+| **Reaction** | `tg:Reaction` | Emoji reaction *(schema-only, not yet populated)* |
 
 | Enum | Values |
 |------|--------|
-| **MediaType** | photo, video, document, webpage, audio, sticker, other |
-| **ServiceActionType** | join, leave, pin, title_change, photo_change, other |
+| **MediaType** | photo, video, document, audio, voice, sticker, animation, other |
 
 ### Key Ontology Prefixes
 
 | Prefix | Namespace |
 |--------|-----------|
 | `sioc:` | `http://rdfs.org/sioc/ns#` |
+| `sioc_types:` | `http://rdfs.org/sioc/types#` |
 | `dcterms:` | `http://purl.org/dc/terms/` |
-| `schema:` | `http://schema.org/` |
+| `dc:` | `http://purl.org/dc/elements/1.1/` |
 | `foaf:` | `http://xmlns.com/foaf/0.1/` |
+| `skos:` | `http://www.w3.org/2004/02/skos/core#` |
 | `tg:` | `https://example.org/telegram/` |
+
+### Entity Hierarchy
+
+```
+sioc:Community — "Sensemaking Scenius"
+  +-- dcterms:hasPart --> sioc:Site — "Telegram"
+        +-- sioc:host_of --> sioc:Forum — Supergroup (organizational)
+        |     +-- sioc:parent_of --> sioc:Forum — "General" (topic channel)
+        |     +-- sioc:parent_of --> sioc:Forum — "Resources" (topic channel)
+        |     +-- sioc:parent_of --> sioc:Forum — "Events" (topic channel)
+        +-- sioc:host_of --> sioc:Forum — Side Channel (independent)
+```
 
 ## Quick Start
 
@@ -159,30 +178,32 @@ First run will prompt for Telegram phone number and verification code.
 ```
 knowledge-graph-builder/
 ├── schemas/
-│   └── sioc.yaml                  # LinkML schema (SIOC-aligned)
+│   └── sioc.yaml                  # LinkML schema (SIOC-aligned, 13 classes)
 ├── src/builder/
 │   ├── __init__.py
 │   ├── config.py                  # Paths, env vars, URI helpers
 │   ├── extract.py                 # Stage 1: Telegram API → raw files
 │   ├── transform/                 # Stage 2: raw → LinkML graph
 │   │   ├── __init__.py            #   Orchestrator + graph assembly
-│   │   ├── channel.py             #   Community + thread builders
-│   │   ├── users.py               #   UserAccount builder
-│   │   ├── messages.py            #   Post builder
-│   │   └── entities.py            #   Hashtags, mentions, URLs, replies
+│   │   ├── channel.py             #   Community + Site + Forum hierarchy
+│   │   ├── users.py               #   User + Person builder
+│   │   ├── messages.py            #   Post builder (replies, forwards, media)
+│   │   └── entities.py            #   Hashtags → Concept, URLs → LinkedDocument
 │   ├── serialize.py               # Stage 3: LinkML JSON → RDF/Turtle
-│   ├── load.py                    # Stage 4: Turtle → Oxigraph store
+│   ├── load.py                    # Stage 4: Turtle → Oxigraph (HTTP POST)
 │   ├── query.py                   # Demo dashboard (11-section rich CLI)
 │   └── models.py                  # Auto-generated from schema (don't edit)
 ├── data/
 │   ├── raw/                       # Extract output (messages, participants, etc.)
 │   ├── graph/                     # Transform output (linkml_graph.json)
 │   ├── rdf/                       # Serialize output (sioc_graph.ttl)
-│   └── store/                     # Load output (Oxigraph database)
+│   └── store/                     # Oxigraph database (Docker volume)
 ├── docs/
 │   ├── SETUP.md                   # Quick setup guide
 │   ├── PIPELINE.md                # Pipeline architecture details
-│   └── GRAPH.md                   # Graph inventory (what's in the data)
+│   ├── GRAPH.md                   # Graph inventory (what's in the data)
+│   ├── sioc.md                    # SIOC ontology reference
+│   └── telethon.md                # Telethon field inventory
 ├── docker-compose.yml             # Oxigraph triplestore service
 ├── justfile                       # Task automation recipes
 ├── pyproject.toml                 # Dependencies (uv)
@@ -191,40 +212,40 @@ knowledge-graph-builder/
 
 ## Example SPARQL Queries
 
-### Posts with reactions
+### Forum activity
 
 ```sparql
 PREFIX sioc: <http://rdfs.org/sioc/ns#>
-PREFIX tg:   <https://example.org/telegram/>
 
-SELECT ?post ?content ?count
+SELECT ?forum ?name (COUNT(?post) AS ?posts)
 WHERE {
   ?post a sioc:Post ;
-        sioc:content ?content ;
-        tg:reaction_count ?count .
+        sioc:has_container ?forum .
+  ?forum sioc:name ?name .
 }
-ORDER BY DESC(?count)
-LIMIT 10
-```
-
-### Forum thread activity
-
-```sparql
-PREFIX sioc: <http://rdfs.org/sioc/ns#>
-PREFIX foaf: <http://xmlns.com/foaf/0.1/>
-PREFIX tg:   <https://example.org/telegram/>
-
-SELECT ?name (COUNT(?post) AS ?posts)
-WHERE {
-  ?post a sioc:Post ;
-        tg:has_thread ?thread .
-  ?thread foaf:name ?name .
-}
-GROUP BY ?name
+GROUP BY ?forum ?name
 ORDER BY DESC(?posts)
 ```
 
-### Posts with media
+### Reply network
+
+```sparql
+PREFIX sioc: <http://rdfs.org/sioc/ns#>
+
+SELECT ?from ?to (COUNT(*) AS ?replies)
+WHERE {
+  ?reply sioc:has_creator ?replier ;
+         sioc:reply_of ?parent .
+  ?parent sioc:has_creator ?original .
+  ?replier sioc:name ?from .
+  ?original sioc:name ?to .
+}
+GROUP BY ?from ?to
+ORDER BY DESC(?replies)
+LIMIT 10
+```
+
+### Posts with attachments
 
 ```sparql
 PREFIX sioc: <http://rdfs.org/sioc/ns#>
@@ -234,28 +255,43 @@ SELECT ?post ?content ?mtype
 WHERE {
   ?post a sioc:Post ;
         sioc:content ?content ;
-        tg:media_type ?mtype .
+        sioc:attachment ?att .
+  ?att tg:media_type ?mtype .
 }
 LIMIT 10
 ```
 
-### Reply threads
+### Shared links with metadata
 
 ```sparql
 PREFIX sioc: <http://rdfs.org/sioc/ns#>
-PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+PREFIX dc:   <http://purl.org/dc/elements/1.1/>
+PREFIX tg:   <https://example.org/telegram/>
 
-SELECT ?replier_name ?original_name (COUNT(*) AS ?count)
+SELECT ?title ?site_name (COUNT(?post) AS ?shares)
 WHERE {
-  ?reply sioc:has_creator ?replier ;
-         sioc:reply_of ?parent .
-  ?parent sioc:has_creator ?original .
-  OPTIONAL { ?replier foaf:accountName ?replier_name }
-  OPTIONAL { ?original foaf:accountName ?original_name }
+  ?post sioc:links_to ?doc .
+  ?doc dc:title ?title .
+  OPTIONAL { ?doc tg:site_name ?site_name }
 }
-GROUP BY ?replier_name ?original_name
-ORDER BY DESC(?count)
+GROUP BY ?title ?site_name
+ORDER BY DESC(?shares)
 LIMIT 10
+```
+
+### Topic (hashtag) distribution
+
+```sparql
+PREFIX sioc: <http://rdfs.org/sioc/ns#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+
+SELECT ?label (COUNT(?post) AS ?posts)
+WHERE {
+  ?post sioc:topic ?concept .
+  ?concept skos:prefLabel ?label .
+}
+GROUP BY ?label
+ORDER BY DESC(?posts)
 ```
 
 ## Dependencies
@@ -264,7 +300,7 @@ LIMIT 10
 - **[linkml-runtime](https://linkml.io/)** — runtime support for generated models
 - **[Oxigraph](https://github.com/oxigraph/oxigraph)** — RDF triplestore (Docker for persistence, pyoxigraph for in-memory demo)
 - **[telethon](https://docs.telethon.dev/)** — Telegram client API
-- **[rich](https://github.com/Textualize/rich)** — terminal formatting
+- **[rich](https://github.com/Textualized/rich)** — terminal formatting
 - **[python-dotenv](https://github.com/theskumar/python-dotenv)** — environment variable management
 
 ## Resources
