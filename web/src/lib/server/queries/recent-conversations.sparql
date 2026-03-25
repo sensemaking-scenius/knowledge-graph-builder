@@ -1,0 +1,23 @@
+## Recent Conversations
+## Latest reply chains showing who's talking to whom
+PREFIX sioc: <http://rdfs.org/sioc/ns#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+
+SELECT ?reply ?replyContent ?replyCreator ?replyDate ?parent ?parentContent ?parentCreator
+WHERE {
+  ?reply a sioc:Post ;
+         sioc:reply_of ?parent ;
+         dcterms:created ?replyDate .
+  OPTIONAL { ?reply sioc:content ?replyContent }
+  OPTIONAL {
+    ?reply sioc:has_creator ?rc .
+    ?rc sioc:name ?replyCreator
+  }
+  OPTIONAL { ?parent sioc:content ?parentContent }
+  OPTIONAL {
+    ?parent sioc:has_creator ?pc .
+    ?pc sioc:name ?parentCreator
+  }
+}
+ORDER BY DESC(?replyDate)
+LIMIT 50

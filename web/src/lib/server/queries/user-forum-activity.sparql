@@ -1,0 +1,16 @@
+## User-Forum Activity Matrix
+## Which users are most active in which forums
+PREFIX sioc: <http://rdfs.org/sioc/ns#>
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+
+SELECT ?userName ?forumName (COUNT(?post) AS ?postCount)
+WHERE {
+  ?post a sioc:Post ;
+        sioc:has_creator ?user ;
+        sioc:has_container ?forum .
+  ?user sioc:name ?userName .
+  ?forum foaf:name ?forumName .
+}
+GROUP BY ?userName ?forumName
+HAVING (COUNT(?post) > 5)
+ORDER BY ?userName DESC(?postCount)

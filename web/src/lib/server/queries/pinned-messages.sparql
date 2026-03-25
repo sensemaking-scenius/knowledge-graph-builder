@@ -1,0 +1,23 @@
+## Pinned Messages
+## All pinned posts with their forum context
+PREFIX sioc: <http://rdfs.org/sioc/ns#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+PREFIX tg: <https://example.org/telegram/>
+
+SELECT ?post ?content ?created ?creator ?forumName
+WHERE {
+  ?post a sioc:Post ;
+        tg:pinned true ;
+        dcterms:created ?created .
+  OPTIONAL { ?post sioc:content ?content }
+  OPTIONAL {
+    ?post sioc:has_creator ?creatorUri .
+    ?creatorUri sioc:name ?creator
+  }
+  OPTIONAL {
+    ?post sioc:has_container ?forum .
+    ?forum foaf:name ?forumName
+  }
+}
+ORDER BY DESC(?created)

@@ -1,0 +1,13 @@
+## Top Contributors
+## Most active users by post count
+PREFIX sioc: <http://rdfs.org/sioc/ns#>
+
+SELECT ?user ?name (COUNT(?post) AS ?postCount)
+WHERE {
+  ?post a sioc:Post ;
+        sioc:has_creator ?user .
+  ?user sioc:name ?name .
+}
+GROUP BY ?user ?name
+ORDER BY DESC(?postCount)
+LIMIT 25

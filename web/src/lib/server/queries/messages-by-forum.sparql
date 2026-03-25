@@ -1,0 +1,14 @@
+## Messages by Forum
+## Post count per forum/topic channel
+PREFIX sioc: <http://rdfs.org/sioc/ns#>
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+
+SELECT ?forum ?forumName (COUNT(?post) AS ?postCount)
+WHERE {
+  ?post a sioc:Post ;
+        sioc:has_container ?forum .
+  ?forum a sioc:Forum .
+  OPTIONAL { ?forum foaf:name ?forumName }
+}
+GROUP BY ?forum ?forumName
+ORDER BY DESC(?postCount)

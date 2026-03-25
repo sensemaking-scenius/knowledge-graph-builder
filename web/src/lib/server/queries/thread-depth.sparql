@@ -1,0 +1,18 @@
+## Thread Depth
+## Forums ranked by average reply chain depth
+PREFIX sioc: <http://rdfs.org/sioc/ns#>
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+
+SELECT ?forum ?forumName (COUNT(?reply) AS ?replyCount) (COUNT(DISTINCT ?root) AS ?threadCount)
+WHERE {
+  ?reply a sioc:Post ;
+         sioc:reply_of ?parent ;
+         sioc:has_container ?forum .
+  ?forum a sioc:Forum .
+  OPTIONAL { ?forum foaf:name ?forumName }
+  # Find root posts (posts that are replied to but aren't replies themselves)
+  OPTIONAL { ?parent sioc:reply_of ?grandparent }
+  BIND(IF(!BOUND(?grandparent), ?parent, ?bnode) AS ?root)
+}
+GROUP BY ?forum ?forumName
+ORDER BY DESC(?replyCount)

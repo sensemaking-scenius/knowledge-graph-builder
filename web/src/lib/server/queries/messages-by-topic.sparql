@@ -1,0 +1,13 @@
+## Messages by Topic
+## Posts tagged with each hashtag concept
+PREFIX sioc: <http://rdfs.org/sioc/ns#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+
+SELECT ?concept ?label (COUNT(?post) AS ?postCount)
+WHERE {
+  ?post a sioc:Post ;
+        sioc:topic ?concept .
+  ?concept skos:prefLabel ?label .
+}
+GROUP BY ?concept ?label
+ORDER BY DESC(?postCount)

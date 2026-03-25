@@ -1,0 +1,17 @@
+## Most Shared Links
+## URLs shared most frequently across messages
+PREFIX sioc: <http://rdfs.org/sioc/ns#>
+PREFIX dc: <http://purl.org/dc/elements/1.1/>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+PREFIX tg: <https://example.org/telegram/>
+
+SELECT ?doc ?title ?siteName (COUNT(?post) AS ?shareCount)
+WHERE {
+  ?post a sioc:Post ;
+        sioc:links_to ?doc .
+  OPTIONAL { ?doc dc:title ?title }
+  OPTIONAL { ?doc tg:site_name ?siteName }
+}
+GROUP BY ?doc ?title ?siteName
+ORDER BY DESC(?shareCount)
+LIMIT 50

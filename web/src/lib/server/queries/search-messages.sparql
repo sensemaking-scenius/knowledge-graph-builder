@@ -1,0 +1,22 @@
+## Search Messages
+## Find posts containing a keyword (replace KEYWORD with your search term)
+PREFIX sioc: <http://rdfs.org/sioc/ns#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+
+SELECT ?post ?content ?created ?creator ?forumName
+WHERE {
+  ?post a sioc:Post ;
+        sioc:content ?content ;
+        dcterms:created ?created .
+  FILTER(CONTAINS(LCASE(?content), "KEYWORD"))
+  OPTIONAL {
+    ?post sioc:has_creator ?creatorUri .
+    ?creatorUri sioc:name ?creator
+  }
+  OPTIONAL {
+    ?post sioc:has_container ?forum .
+    ?forum foaf:name ?forumName
+  }
+}
+ORDER BY DESC(?created)
+LIMIT 50

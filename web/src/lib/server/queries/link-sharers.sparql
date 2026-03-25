@@ -1,0 +1,15 @@
+## Top Link Sharers
+## Users who share the most external links
+PREFIX sioc: <http://rdfs.org/sioc/ns#>
+
+SELECT ?user ?name (COUNT(DISTINCT ?doc) AS ?uniqueLinks) (COUNT(?link) AS ?totalShares)
+WHERE {
+  ?post a sioc:Post ;
+        sioc:has_creator ?user ;
+        sioc:links_to ?doc .
+  ?user sioc:name ?name .
+  BIND(?doc AS ?link)
+}
+GROUP BY ?user ?name
+ORDER BY DESC(?uniqueLinks)
+LIMIT 25

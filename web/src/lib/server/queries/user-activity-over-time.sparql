@@ -1,0 +1,26 @@
+## User Activity Over Time
+## Monthly post counts per user (top 10 users)
+PREFIX sioc: <http://rdfs.org/sioc/ns#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+SELECT ?name ?month (COUNT(?post) AS ?postCount)
+WHERE {
+  {
+    SELECT ?topUser
+    WHERE {
+      ?p a sioc:Post ;
+         sioc:has_creator ?topUser .
+    }
+    GROUP BY ?topUser
+    ORDER BY DESC(COUNT(?p))
+    LIMIT 10
+  }
+  ?post a sioc:Post ;
+        sioc:has_creator ?topUser ;
+        dcterms:created ?created .
+  ?topUser sioc:name ?name .
+  BIND(SUBSTR(STR(?created), 1, 7) AS ?month)
+}
+GROUP BY ?name ?month
+ORDER BY ?month ?name

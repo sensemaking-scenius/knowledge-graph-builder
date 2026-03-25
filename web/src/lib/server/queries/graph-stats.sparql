@@ -1,0 +1,22 @@
+## Graph Statistics
+## Overall counts of all entity types in the knowledge graph
+PREFIX sioc: <http://rdfs.org/sioc/ns#>
+PREFIX sioc_types: <http://rdfs.org/sioc/types#>
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+
+SELECT
+  (COUNT(DISTINCT ?post) AS ?posts)
+  (COUNT(DISTINCT ?user) AS ?users)
+  (COUNT(DISTINCT ?forum) AS ?forums)
+  (COUNT(DISTINCT ?concept) AS ?topics)
+  (COUNT(DISTINCT ?doc) AS ?linkedDocs)
+  (COUNT(DISTINCT ?reply) AS ?replies)
+WHERE {
+  { ?post a sioc:Post }
+  UNION { ?user a sioc:User }
+  UNION { ?forum a sioc:Forum }
+  UNION { ?concept a skos:Concept }
+  UNION { ?doc a foaf:Document }
+  UNION { ?reply sioc:reply_of ?_ }
+}
