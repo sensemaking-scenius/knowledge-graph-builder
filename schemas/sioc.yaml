@@ -37,6 +37,8 @@ classes:
       - attachments
       - linked_documents
       - polls
+      - annotations
+      - annotation_sessions
 
   # ── Space / Container hierarchy ─────────────────────────────────────
   Community:
@@ -152,6 +154,33 @@ classes:
     slots:
       - id
       - pref_label
+      - concept_type
+      - concept_description
+      - confidence
+
+  # ── Annotations ─────────────────────────────────────────────────────
+  Annotation:
+    class_uri: tg:Annotation
+    slots:
+      - id
+      - annotation_body
+      - annotation_target
+      - entity_type
+      - confidence
+      - discovered_by
+      - session_ref
+      - created
+
+  AnnotationSession:
+    class_uri: tg:AnnotationSession
+    slots:
+      - id
+      - harmonica_session_id
+      - theme
+      - messages_annotated
+      - participant_count
+      - created
+      - session_status
 
   # ── Reaction (schema-only, not populated in v1) ─────────────────────
   Reaction:
@@ -177,6 +206,31 @@ enums:
       sticker:
       animation:
       other:
+
+  EntityType:
+    permissible_values:
+      person:
+      tool:
+      project:
+      concept:
+      organization:
+
+  SessionTheme:
+    permissible_values:
+      free_hunt:
+      whos_who:
+      tool_chest:
+      project_radar:
+      idea_map:
+      link_dive:
+      relationships:
+      verification:
+
+  SessionStatus:
+    permissible_values:
+      active:
+      synthesized:
+      imported:
 
 # ═══════════════════════════════════════════════════════════════════════
 # Slots
@@ -402,6 +456,60 @@ slots:
     range: Post
     slot_uri: tg:target
 
+  # ── Concept extended properties ──────────────────────────────────────
+  concept_type:
+    range: EntityType
+    slot_uri: tg:concept_type
+
+  concept_description:
+    slot_uri: tg:concept_description
+
+  confidence:
+    range: float
+    slot_uri: tg:confidence
+
+  # ── Annotation properties ───────────────────────────────────────────
+  annotation_body:
+    slot_uri: tg:annotation_body
+
+  annotation_target:
+    range: Post
+    slot_uri: tg:annotation_target
+
+  entity_type:
+    range: EntityType
+    slot_uri: tg:entity_type
+
+  discovered_by:
+    range: User
+    slot_uri: tg:discovered_by
+
+  session_ref:
+    range: AnnotationSession
+    slot_uri: tg:session_ref
+
+  # ── AnnotationSession properties ────────────────────────────────────
+  harmonica_session_id:
+    slot_uri: tg:harmonica_session_id
+
+  theme:
+    range: SessionTheme
+    slot_uri: tg:theme
+
+  messages_annotated:
+    multivalued: true
+    range: Post
+    slot_uri: tg:messages_annotated
+    inlined: false
+
+  participant_count:
+    range: integer
+    slot_uri: tg:participant_count
+
+  session_status:
+    range: SessionStatus
+    slot_uri: tg:session_status
+
   # ── GraphDocument collection slots ──────────────────────────────────
   community:
     range: Community
@@ -453,5 +561,15 @@ slots:
 
   polls:
     range: Poll
+    multivalued: true
+    inlined: true
+
+  annotations:
+    range: Annotation
+    multivalued: true
+    inlined: true
+
+  annotation_sessions:
+    range: AnnotationSession
     multivalued: true
     inlined: true

@@ -39,19 +39,31 @@ just validate         # Validate LinkML schema
 # Type checking
 just typecheck
 
+# Gamified annotation (Harmonica multiplayer sessions)
+just annotate-select              # Preview next message batch
+just annotate-create              # Create annotation session (default: free_hunt)
+just annotate-create tool_chest   # Create themed session
+just annotate-check               # Check session status + synthesis
+just annotate-import              # Import synthesis into knowledge graph
+just annotate-status              # Dashboard of annotation coverage
+
 # Clean generated data (preserves directory structure)
 just clean
 ```
 
 ## Architecture
 
-### 4-Stage Pipeline
+### Pipeline
 
 ```
 Telegram API → Extract → Transform → Serialize → Load
                  ↓            ↓            ↓          ↓
               data/raw/    data/graph/   data/rdf/  data/store/
               (messages)   (LinkML JSON)  (Turtle)   (Oxigraph)
+                              ↑
+                           Annotate ← Harmonica Sessions (multiplayer)
+                              ↓
+                        data/annotations/
 ```
 
 Each stage is a module in `src/builder/`, invoked via `uv run python -m builder.<stage>`.
@@ -60,12 +72,13 @@ Each stage is a module in `src/builder/`, invoked via `uv run python -m builder.
 |-------|--------|-------|--------|
 | **Extract** | `builder.extract` | Telegram API | `messages.jsonl` |
 | **Transform** | `builder.transform` | Raw JSON files | `linkml_graph.json` |
+| **Annotate** | `builder.annotate` | Graph + Harmonica sessions | entities → `linkml_graph.json` |
 | **Serialize** | `builder.serialize` | LinkML JSON + schema | `sioc_graph.ttl` |
 | **Load** | `builder.load` | Turtle file | Oxigraph (HTTP POST) |
 
 ### Schema-Driven Data Model
 
-The schema lives in `schemas/sioc.yaml` (LinkML format, SIOC ontology-aligned). It defines 13 classes:
+The schema lives in `schemas/sioc.yaml` (LinkML format, SIOC ontology-aligned). It defines 15 classes:
 
 - **GraphDocument** — root container (tree_root)
 - **Community** → `sioc:Community` — the Telegram channel/group
@@ -78,7 +91,9 @@ The schema lives in `schemas/sioc.yaml` (LinkML format, SIOC ontology-aligned). 
 - **Poll** → `sioc_types:Poll` — poll messages
 - **Attachment** → `foaf:Document` — media files (photos, videos, documents)
 - **LinkedDocument** → `foaf:Document` — linked web pages with metadata
-- **Concept** → `skos:Concept` — hashtag topics
+- **Concept** → `skos:Concept` — hashtag topics (extended with entity_type + confidence for annotations)
+- **Annotation** → `tg:Annotation` — entity annotation from a Harmonica session
+- **AnnotationSession** → `tg:AnnotationSession` — a Harmonica multiplayer annotation round
 - **Reaction** → `tg:Reaction` — emoji reactions (schema-only, not yet populated)
 
 `src/builder/models.py` is **auto-generated** from the schema via `just gen-model`. Do not edit it directly; modify `schemas/sioc.yaml` and regenerate.
@@ -106,13 +121,15 @@ The `builder.transform.entities` module extracts from raw Telegram messages: has
 - **`transform/`** — package with sub-modules for messages, users, channels, entities; applies user overrides (merges + backfills) from `data/raw/user_overrides.yaml`
 - **`serialize.py`** — LinkML JSON → RDF/Turtle via rdflib
 - **`load.py`** — Turtle → Oxigraph via HTTP POST (requires `just up`)
+- **`annotate/`** — gamified entity annotation via Harmonica multiplayer sessions (select batches, create sessions, parse synthesis, ingest entities)
 
 ## Configuration
 
 Requires a `.env` file (see `.env.example`):
-- `TG_API_ID` / `TG_API_HASH` — Telegram API credentials
+- `TG_API_ID` / `TG_API_HASH` — Telegram API credentials (required for extraction)
 - `TG_SESSION` — Telethon session file name
 - `TG_ENTITY` — target channel/group (invite link, @username, or numeric peer ID)
+- `HARMONICA_API_KEY` — Harmonica API key for annotation sessions (from harmonica.chat)
 
 ## Tech Stack
 
@@ -121,6 +138,8 @@ Requires a `.env` file (see `.env.example`):
 - **Oxigraph** — RDF triplestore (Docker container for persistence, pyoxigraph for in-memory demo)
 - **Telethon** — Telegram client API
 - **Pyright** — type checking (configured in `pyrightconfig.json`, source root: `src/`)
+- **httpx** — HTTP client for Harmonica REST API
+- **Harmonica** — multiplayer sensemaking platform for gamified entity annotation
 
 # CLAUDE INSTRUCTIONS:
 

@@ -13,6 +13,7 @@ RAW_DIR = ROOT / "data" / "raw"
 GRAPH_DIR = ROOT / "data" / "graph"
 RDF_DIR = ROOT / "data" / "rdf"
 STORE_DIR = ROOT / "data" / "store"
+ANNOTATIONS_DIR = ROOT / "data" / "annotations"
 
 # Pipeline files
 MESSAGES_FILE = RAW_DIR / "messages.jsonl"
@@ -24,15 +25,23 @@ GRAPH_FILE = GRAPH_DIR / "linkml_graph.json"
 TURTLE_FILE = RDF_DIR / "sioc_graph.ttl"
 SCHEMA_FILE = ROOT / "schemas" / "sioc.yaml"
 
-# Telegram config
-TG_API_ID = int(os.environ["TG_API_ID"])
-TG_API_HASH = os.environ["TG_API_HASH"]
+# Telegram config (required only for extraction)
+TG_API_ID = int(os.environ.get("TG_API_ID", "0"))
+TG_API_HASH = os.environ.get("TG_API_HASH", "")
 TG_SESSION = os.environ.get("TG_SESSION", "tg.session")
-TG_ENTITY = os.environ["TG_ENTITY"]
+TG_ENTITY = os.environ.get("TG_ENTITY", "")
 
 # Extraction settings
 EXTRACT_DAYS = int(os.environ.get("EXTRACT_DAYS", "30"))
 STATE_FILE = RAW_DIR / "extract_state.json"
+
+# Harmonica settings
+HARMONICA_API_KEY = os.environ.get("HARMONICA_API_KEY", "")
+HARMONICA_API_URL = os.environ.get("HARMONICA_API_URL", "https://app.harmonica.chat")
+SESSIONS_FILE = ANNOTATIONS_DIR / "sessions.json"
+BATCH_SIZE = int(os.environ.get("ANNOTATE_BATCH_SIZE", "8"))
+MIN_PARTICIPANTS = int(os.environ.get("ANNOTATE_MIN_PARTICIPANTS", "3"))
+CONFIDENCE_THRESHOLD = float(os.environ.get("ANNOTATE_CONFIDENCE_THRESHOLD", "0.6"))
 
 
 # URI helpers
@@ -84,3 +93,11 @@ def document_uri(url: str) -> str:
 
 def graph_uri(channel_id: int) -> str:
     return f"tg:graph/{channel_id}"
+
+
+def annotation_uri(session_id: str, index: int) -> str:
+    return f"tg:annotation/{session_id}/{index}"
+
+
+def annotation_session_uri(session_id: str) -> str:
+    return f"tg:annotation-session/{session_id}"

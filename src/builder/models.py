@@ -1,5 +1,5 @@
 # Auto generated from sioc.yaml by pythongen.py version: 0.0.1
-# Generation date: 2026-03-19T14:22:52
+# Generation date: 2026-08-18T03:43:32
 # Schema: sioc
 #
 # id: https://example.org/knowledge-graph-builder/sioc
@@ -56,7 +56,7 @@ from rdflib import (
     URIRef
 )
 
-from linkml_runtime.linkml_model.types import Boolean, Datetime, Integer, String
+from linkml_runtime.linkml_model.types import Boolean, Datetime, Float, Integer, String
 from linkml_runtime.utils.metamodelcore import Bool, XSDDateTime
 
 metamodel_version = "1.7.0"
@@ -126,6 +126,14 @@ class ConceptId(extended_str):
     pass
 
 
+class AnnotationId(extended_str):
+    pass
+
+
+class AnnotationSessionId(extended_str):
+    pass
+
+
 class ReactionId(extended_str):
     pass
 
@@ -151,6 +159,8 @@ class GraphDocument(YAMLRoot):
     attachments: Optional[Union[dict[Union[str, AttachmentId], Union[dict, "Attachment"]], list[Union[dict, "Attachment"]]]] = empty_dict()
     linked_documents: Optional[Union[dict[Union[str, LinkedDocumentId], Union[dict, "LinkedDocument"]], list[Union[dict, "LinkedDocument"]]]] = empty_dict()
     polls: Optional[Union[dict[Union[str, PollId], Union[dict, "Poll"]], list[Union[dict, "Poll"]]]] = empty_dict()
+    annotations: Optional[Union[dict[Union[str, AnnotationId], Union[dict, "Annotation"]], list[Union[dict, "Annotation"]]]] = empty_dict()
+    annotation_sessions: Optional[Union[dict[Union[str, AnnotationSessionId], Union[dict, "AnnotationSession"]], list[Union[dict, "AnnotationSession"]]]] = empty_dict()
 
     def __post_init__(self, *_: str, **kwargs: Any):
         if self._is_empty(self.id):
@@ -181,6 +191,10 @@ class GraphDocument(YAMLRoot):
         self._normalize_inlined_as_dict(slot_name="linked_documents", slot_type=LinkedDocument, key_name="id", keyed=True)
 
         self._normalize_inlined_as_dict(slot_name="polls", slot_type=Poll, key_name="id", keyed=True)
+
+        self._normalize_inlined_as_dict(slot_name="annotations", slot_type=Annotation, key_name="id", keyed=True)
+
+        self._normalize_inlined_as_dict(slot_name="annotation_sessions", slot_type=AnnotationSession, key_name="id", keyed=True)
 
         super().__post_init__(**kwargs)
 
@@ -621,6 +635,9 @@ class Concept(YAMLRoot):
 
     id: Union[str, ConceptId] = None
     pref_label: Optional[str] = None
+    concept_type: Optional[Union[str, "EntityType"]] = None
+    concept_description: Optional[str] = None
+    confidence: Optional[float] = None
 
     def __post_init__(self, *_: str, **kwargs: Any):
         if self._is_empty(self.id):
@@ -630,6 +647,108 @@ class Concept(YAMLRoot):
 
         if self.pref_label is not None and not isinstance(self.pref_label, str):
             self.pref_label = str(self.pref_label)
+
+        if self.concept_type is not None and not isinstance(self.concept_type, EntityType):
+            self.concept_type = EntityType(self.concept_type)
+
+        if self.concept_description is not None and not isinstance(self.concept_description, str):
+            self.concept_description = str(self.concept_description)
+
+        if self.confidence is not None and not isinstance(self.confidence, float):
+            self.confidence = float(self.confidence)
+
+        super().__post_init__(**kwargs)
+
+
+@dataclass(repr=False)
+class Annotation(YAMLRoot):
+    _inherited_slots: ClassVar[list[str]] = []
+
+    class_class_uri: ClassVar[URIRef] = TG["Annotation"]
+    class_class_curie: ClassVar[str] = "tg:Annotation"
+    class_name: ClassVar[str] = "Annotation"
+    class_model_uri: ClassVar[URIRef] = TG.Annotation
+
+    id: Union[str, AnnotationId] = None
+    annotation_body: Optional[str] = None
+    annotation_target: Optional[Union[str, PostId]] = None
+    entity_type: Optional[Union[str, "EntityType"]] = None
+    confidence: Optional[float] = None
+    discovered_by: Optional[Union[str, UserId]] = None
+    session_ref: Optional[Union[str, AnnotationSessionId]] = None
+    created: Optional[Union[str, XSDDateTime]] = None
+
+    def __post_init__(self, *_: str, **kwargs: Any):
+        if self._is_empty(self.id):
+            self.MissingRequiredField("id")
+        if not isinstance(self.id, AnnotationId):
+            self.id = AnnotationId(self.id)
+
+        if self.annotation_body is not None and not isinstance(self.annotation_body, str):
+            self.annotation_body = str(self.annotation_body)
+
+        if self.annotation_target is not None and not isinstance(self.annotation_target, PostId):
+            self.annotation_target = PostId(self.annotation_target)
+
+        if self.entity_type is not None and not isinstance(self.entity_type, EntityType):
+            self.entity_type = EntityType(self.entity_type)
+
+        if self.confidence is not None and not isinstance(self.confidence, float):
+            self.confidence = float(self.confidence)
+
+        if self.discovered_by is not None and not isinstance(self.discovered_by, UserId):
+            self.discovered_by = UserId(self.discovered_by)
+
+        if self.session_ref is not None and not isinstance(self.session_ref, AnnotationSessionId):
+            self.session_ref = AnnotationSessionId(self.session_ref)
+
+        if self.created is not None and not isinstance(self.created, XSDDateTime):
+            self.created = XSDDateTime(self.created)
+
+        super().__post_init__(**kwargs)
+
+
+@dataclass(repr=False)
+class AnnotationSession(YAMLRoot):
+    _inherited_slots: ClassVar[list[str]] = []
+
+    class_class_uri: ClassVar[URIRef] = TG["AnnotationSession"]
+    class_class_curie: ClassVar[str] = "tg:AnnotationSession"
+    class_name: ClassVar[str] = "AnnotationSession"
+    class_model_uri: ClassVar[URIRef] = TG.AnnotationSession
+
+    id: Union[str, AnnotationSessionId] = None
+    harmonica_session_id: Optional[str] = None
+    theme: Optional[Union[str, "SessionTheme"]] = None
+    messages_annotated: Optional[Union[Union[str, PostId], list[Union[str, PostId]]]] = empty_list()
+    participant_count: Optional[int] = None
+    created: Optional[Union[str, XSDDateTime]] = None
+    session_status: Optional[Union[str, "SessionStatus"]] = None
+
+    def __post_init__(self, *_: str, **kwargs: Any):
+        if self._is_empty(self.id):
+            self.MissingRequiredField("id")
+        if not isinstance(self.id, AnnotationSessionId):
+            self.id = AnnotationSessionId(self.id)
+
+        if self.harmonica_session_id is not None and not isinstance(self.harmonica_session_id, str):
+            self.harmonica_session_id = str(self.harmonica_session_id)
+
+        if self.theme is not None and not isinstance(self.theme, SessionTheme):
+            self.theme = SessionTheme(self.theme)
+
+        if not isinstance(self.messages_annotated, list):
+            self.messages_annotated = [self.messages_annotated] if self.messages_annotated is not None else []
+        self.messages_annotated = [v if isinstance(v, PostId) else PostId(v) for v in self.messages_annotated]
+
+        if self.participant_count is not None and not isinstance(self.participant_count, int):
+            self.participant_count = int(self.participant_count)
+
+        if self.created is not None and not isinstance(self.created, XSDDateTime):
+            self.created = XSDDateTime(self.created)
+
+        if self.session_status is not None and not isinstance(self.session_status, SessionStatus):
+            self.session_status = SessionStatus(self.session_status)
 
         super().__post_init__(**kwargs)
 
@@ -680,6 +799,43 @@ class MediaType(EnumDefinitionImpl):
 
     _defn = EnumDefinition(
         name="MediaType",
+    )
+
+class EntityType(EnumDefinitionImpl):
+
+    person = PermissibleValue(text="person")
+    tool = PermissibleValue(text="tool")
+    project = PermissibleValue(text="project")
+    concept = PermissibleValue(text="concept")
+    organization = PermissibleValue(text="organization")
+
+    _defn = EnumDefinition(
+        name="EntityType",
+    )
+
+class SessionTheme(EnumDefinitionImpl):
+
+    free_hunt = PermissibleValue(text="free_hunt")
+    whos_who = PermissibleValue(text="whos_who")
+    tool_chest = PermissibleValue(text="tool_chest")
+    project_radar = PermissibleValue(text="project_radar")
+    idea_map = PermissibleValue(text="idea_map")
+    link_dive = PermissibleValue(text="link_dive")
+    relationships = PermissibleValue(text="relationships")
+    verification = PermissibleValue(text="verification")
+
+    _defn = EnumDefinition(
+        name="SessionTheme",
+    )
+
+class SessionStatus(EnumDefinitionImpl):
+
+    active = PermissibleValue(text="active")
+    synthesized = PermissibleValue(text="synthesized")
+    imported = PermissibleValue(text="imported")
+
+    _defn = EnumDefinition(
+        name="SessionStatus",
     )
 
 # Slots
@@ -845,6 +1001,45 @@ slots.emoji = Slot(uri=TG.emoji, name="emoji", curie=TG.curie('emoji'),
 slots.target = Slot(uri=TG.target, name="target", curie=TG.curie('target'),
                    model_uri=TG.target, domain=None, range=Optional[Union[str, PostId]])
 
+slots.concept_type = Slot(uri=TG.concept_type, name="concept_type", curie=TG.curie('concept_type'),
+                   model_uri=TG.concept_type, domain=None, range=Optional[Union[str, "EntityType"]])
+
+slots.concept_description = Slot(uri=TG.concept_description, name="concept_description", curie=TG.curie('concept_description'),
+                   model_uri=TG.concept_description, domain=None, range=Optional[str])
+
+slots.confidence = Slot(uri=TG.confidence, name="confidence", curie=TG.curie('confidence'),
+                   model_uri=TG.confidence, domain=None, range=Optional[float])
+
+slots.annotation_body = Slot(uri=TG.annotation_body, name="annotation_body", curie=TG.curie('annotation_body'),
+                   model_uri=TG.annotation_body, domain=None, range=Optional[str])
+
+slots.annotation_target = Slot(uri=TG.annotation_target, name="annotation_target", curie=TG.curie('annotation_target'),
+                   model_uri=TG.annotation_target, domain=None, range=Optional[Union[str, PostId]])
+
+slots.entity_type = Slot(uri=TG.entity_type, name="entity_type", curie=TG.curie('entity_type'),
+                   model_uri=TG.entity_type, domain=None, range=Optional[Union[str, "EntityType"]])
+
+slots.discovered_by = Slot(uri=TG.discovered_by, name="discovered_by", curie=TG.curie('discovered_by'),
+                   model_uri=TG.discovered_by, domain=None, range=Optional[Union[str, UserId]])
+
+slots.session_ref = Slot(uri=TG.session_ref, name="session_ref", curie=TG.curie('session_ref'),
+                   model_uri=TG.session_ref, domain=None, range=Optional[Union[str, AnnotationSessionId]])
+
+slots.harmonica_session_id = Slot(uri=TG.harmonica_session_id, name="harmonica_session_id", curie=TG.curie('harmonica_session_id'),
+                   model_uri=TG.harmonica_session_id, domain=None, range=Optional[str])
+
+slots.theme = Slot(uri=TG.theme, name="theme", curie=TG.curie('theme'),
+                   model_uri=TG.theme, domain=None, range=Optional[Union[str, "SessionTheme"]])
+
+slots.messages_annotated = Slot(uri=TG.messages_annotated, name="messages_annotated", curie=TG.curie('messages_annotated'),
+                   model_uri=TG.messages_annotated, domain=None, range=Optional[Union[Union[str, PostId], list[Union[str, PostId]]]])
+
+slots.participant_count = Slot(uri=TG.participant_count, name="participant_count", curie=TG.curie('participant_count'),
+                   model_uri=TG.participant_count, domain=None, range=Optional[int])
+
+slots.session_status = Slot(uri=TG.session_status, name="session_status", curie=TG.curie('session_status'),
+                   model_uri=TG.session_status, domain=None, range=Optional[Union[str, "SessionStatus"]])
+
 slots.community = Slot(uri=TG.community, name="community", curie=TG.curie('community'),
                    model_uri=TG.community, domain=None, range=Optional[Union[dict, Community]])
 
@@ -877,4 +1072,10 @@ slots.linked_documents = Slot(uri=TG.linked_documents, name="linked_documents", 
 
 slots.polls = Slot(uri=TG.polls, name="polls", curie=TG.curie('polls'),
                    model_uri=TG.polls, domain=None, range=Optional[Union[dict[Union[str, PollId], Union[dict, Poll]], list[Union[dict, Poll]]]])
+
+slots.annotations = Slot(uri=TG.annotations, name="annotations", curie=TG.curie('annotations'),
+                   model_uri=TG.annotations, domain=None, range=Optional[Union[dict[Union[str, AnnotationId], Union[dict, Annotation]], list[Union[dict, Annotation]]]])
+
+slots.annotation_sessions = Slot(uri=TG.annotation_sessions, name="annotation_sessions", curie=TG.curie('annotation_sessions'),
+                   model_uri=TG.annotation_sessions, domain=None, range=Optional[Union[dict[Union[str, AnnotationSessionId], Union[dict, AnnotationSession]], list[Union[dict, AnnotationSession]]]])
 

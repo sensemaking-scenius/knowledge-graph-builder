@@ -57,6 +57,22 @@ query:
     -H "Content-Type: application/sparql-query" \
     --data 'SELECT (COUNT(*) AS ?count) WHERE { ?s ?p ?o }'
 
+# Gamified annotation via Harmonica
+annotate-select:
+  {{PY}} -m builder.annotate select
+
+annotate-create theme="free_hunt":
+  {{PY}} -m builder.annotate create --theme {{theme}}
+
+annotate-check session_id="":
+  {{PY}} -m builder.annotate check {{session_id}}
+
+annotate-import session_id="":
+  {{PY}} -m builder.annotate import {{session_id}}
+
+annotate-status:
+  {{PY}} -m builder.annotate status
+
 gen-model:
   {{PY}} -m linkml.generators.pythongen schemas/sioc.yaml > src/builder/models.py
 
